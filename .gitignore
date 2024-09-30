@@ -164,5 +164,8 @@ cython_debug/
 # MacOS
 .DS_Store
 
+# idea project files
+.idea/
+
 # Scratch Files
 scratch*
