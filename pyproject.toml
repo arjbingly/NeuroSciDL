@@ -1,0 +1,18 @@
+[project]
+name = "PyTorch-BoilerPlate"
+description = "A boilerplate code for Deep Learning using PyTorch"
+authors = [
+    {name = "Arjun Bingly", email = "arjunbin@gmail.com"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+dependencies = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "torchaudio>=2.4",
+    "numpy>=2",
+    "pandas>=2",
+    "tabulate>=0.8",
+    "lightning>=2.4",
+    "torchinfo>=1.8"
+]
