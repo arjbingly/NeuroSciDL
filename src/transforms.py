@@ -7,11 +7,25 @@ from torchvision import transforms
 
 
 class AddGaussianNoise(object):
+    """Adds Gaussian noise to a tensor.
+
+    Args:
+        mean (Optional[float], optional): Mean of the Gaussian noise. If None, the mean of the tensor is used. Defaults to None.
+        std (float, optional): Standard deviation of the Gaussian noise. Defaults to 0.5.
+    """
     def __init__(self, mean: Optional[float] = None, std: float = 0.5):
         self.std = std
         self.mean = mean
 
     def __call__(self, tensor: Tensor) -> Tensor:
+        """Applies Gaussian noise to the tensor.
+
+        Args:
+            tensor (Tensor): Input tensor to which noise will be added.
+
+        Returns:
+            Tensor: Tensor with added Gaussian noise.
+        """
         if self.mean is None:
             mean = tensor.mean()
             return tensor + torch.randn(tensor.size()) * self.std + mean
@@ -19,10 +33,15 @@ class AddGaussianNoise(object):
             return tensor + torch.randn(tensor.size()) * self.std + self.mean
 
     def __repr__(self) -> str:
+        """Returns a string representation of the object.
+
+        Returns:
+            str: String representation of the object.
+        """
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
-def preprocess(img: Image) -> Tensor:
+def preprocess_resnet(img: Image) -> Tensor:
     img = img.convert('L')
     img = Image.merge("RGB", (img, img, img))
     _preprocess = transforms.Compose(
