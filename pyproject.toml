@@ -4,6 +4,7 @@ description = "A boilerplate code for Deep Learning using PyTorch"
 authors = [
     {name = "Arjun Bingly", email = "arjunbin@gmail.com"},
 ]
+version = '0.0.1'
 readme = "README.md"
 license = {file = "LICENSE"}
 dependencies = [
