@@ -1,12 +1,17 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import lightning as L
+import numpy as np
 import pandas as pd
+import torch
 from PIL import Image
-from torch import Tensor
+from sklearn.preprocessing import StandardScaler
+from torch import FloatTensor, Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+
+from transforms import CategoricalEncoder
 
 
 class ImageDataset(Dataset):
@@ -214,3 +219,175 @@ class ImageDataModule(L.LightningDataModule):
     #
     # def predict_dataloader(self):
     #     return NotImplemented
+
+
+class TabularDataset(Dataset):
+    def __init__(self, df: Union[pd.DataFrame, List[pd.DataFrame]], target):
+        super().__init__()
+        if isinstance(df, pd.DataFrame):
+            self.df = [df]
+        else:
+            self.df = [_df for _df in df if _df is not None]
+        self.target = target
+        self._validate_lens()
+
+    def __len__(self):
+        return len(self.df[0])
+
+    def _validate_lens(self):
+        lens = set([len(df) for df in self.df])
+        lens.add(len(self.target))
+        assert len(lens) == 1, 'Length of dataframes do not match.'
+
+    def __getitem__(self, idx: int) -> Tuple[FloatTensor, Tensor]:
+        row = []
+        for df in self.df:
+            row.append(df.iloc[idx].values)
+        target = torch.tensor(self.target[idx])
+        return torch.from_numpy(np.concatenate(row)), target
+
+
+class TabularDataModule(L.LightningDataModule):
+    def __init__(self,
+                 df: pd.DataFrame,
+                 continuous_cols: list,
+                 categorical_cols: list,
+                 target_col: str,
+                 predict_df: Optional[pd.DataFrame] = None,
+                 continuous_scaler: Union[bool, Callable] = True,
+                 categorical_encoder=True,
+                 target_transform=None,
+                 batch_size: int = 32,
+                 num_workers: int = 0):
+        super().__init__()
+        self.df = df
+        self.continuous_cols = continuous_cols
+        self.categorical_cols = categorical_cols
+        self.target_col = target_col
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+
+        if continuous_scaler is True:
+            self.continuous_scaler = StandardScaler()
+        else:
+            self.continuous_scaler = continuous_scaler
+
+        if categorical_encoder is True:
+            self.categorical_encoder = self.categorical_encoder = CategoricalEncoder(
+                categorical_cols=self.categorical_cols)
+        else:
+            self.categorical_encoder = categorical_encoder
+
+        self.target_transform = target_transform
+
+        self.predict_df = predict_df
+
+    def prepare_data(self) -> None:
+        """Runs checks on the dataframe, and prepares the data for training.
+
+        Only runs on a single host at the time of initialization.
+        """
+        self._validate_cols('fit')
+        if self.predict_df is not None:
+            self._validate_cols('predict')
+
+    def setup(self, stage: str) -> None:
+        if stage == 'fit' or stage is None:
+            self._extract_train_val()  # train_df, val_df
+            self.train_target = self._target_transform(self.train_df)
+            self.val_target = self._target_transform(self.val_df)
+            self._encode_categorical(stage)  # train_nominal_df, train_ordinal_df, val_nominal_df, val_ordinal_df
+            self._scale_continuous(stage)  # train_cont_df, val_cont_df
+            self.train_ds = TabularDataset(df=[self.train_nominal_df, self.train_ordinal_df, self.train_cont_df],
+                                           target=self.train_target)
+            self.val_ds = TabularDataset(df=[self.val_nominal_df, self.val_ordinal_df, self.val_cont_df],
+                                         target=self.val_target)
+        else:
+            self.target = self._target_transform(self.predict_df)
+            self._encode_categorical(stage)  # nominal_df, ordinal_df
+            self._scale_continuous(stage)  # cont_df
+            self.predict_ds = TabularDataset(df=[self.nominal_df, self.ordinal_df, self.cont_df],
+                                             target=self.target)
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(self.train_ds,
+                          batch_size=self.batch_size,
+                          shuffle=True,
+                          num_workers=self.num_workers)
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(self.val_ds,
+                          batch_size=self.batch_size,
+                          shuffle=False,
+                          num_workers=self.num_workers)
+
+    # def test_dataloader(self):
+    #     return NotImplemented
+    #
+    # def predict_dataloader(self):
+    #     return NotImplemented
+
+    def _validate_cols(self, stage: str) -> None:
+        """Checks if all required column names are in the dataframe."""
+        if stage == 'fit' or stage is None:
+            cols = self.df.columns
+            assert 'is_train' in cols, "'is_train' column not found in dataframe."
+        else:
+            cols = self.predict_df.columns
+        assert self.continuous_cols in cols, 'Continuous columns not found in dataframe.'
+        assert self.categorical_cols in cols, 'Categorical columns not found in dataframe.'
+        assert self.target_col in cols, 'Target column not found in dataframe.'
+
+    def _extract_train_val(self):
+        """Extracts the training and validation dataframes using 'is_train' column.
+
+        Only required columns are extracted
+        """
+        required_cols = self.continuous_cols + self.categorical_cols + [self.target_col]
+        self.train_df = self.df[self.df['is_train']][required_cols].copy()
+        self.val_df = self.df[~self.df['is_train']][required_cols].copy()
+        del self.df
+
+    def _target_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.target_transform is not None:
+            target = self.target_transform(df[self.target_col])
+        else:
+            target = df[self.target_col]
+        return target
+
+    def _encode_categorical(self, stage: str) -> None:
+        if self.categorical_encoder is not False:
+            if stage == 'fit' or stage is None:
+                self.train_nominal_df, self.train_ordinal_df = self.categorical_encoder.fit_transform(
+                    self.train_df[self.categorical_cols])
+                self.val_nominal_df, self.val_ordinal_df = self.categorical_encoder.transform(
+                    self.val_df[self.categorical_cols])
+            else:
+                self.nominal_df, self.ordinal_df = self.categorical_encoder.transform(
+                    self.predict_df[self.categorical_cols])
+        else:
+            if stage == 'fit' or stage is None:
+                self.train_nominal_df = self.train_df[self.categorical_cols]
+                self.val_nominal_df = self.val_df[self.categorical_cols]
+            else:
+                self.nominal_df = self.predict_df[self.categorical_cols]
+
+    def _scale_continuous(self, stage: str):
+        if self.continuous_scaler is not False:
+            if stage == 'fit' or stage is None:
+                self.train_cont_df = pd.DataFrame(
+                    self.continuous_scaler.fit_transform(self.train_df[self.continuous_cols]),
+                    columns=self.continuous_cols, index=self.train_df.index)
+                self.val_cont_df = pd.DataFrame(
+                    self.continuous_scaler.transform(self.val_df[self.continuous_cols]),
+                    columns=self.continuous_cols, index=self.val_df.index)
+            else:
+                self.cont_df = pd.DataFrame(
+                    self.continuous_scaler.transform(self.predict_df[self.continuous_cols]),
+                    columns=self.continuous_cols, index=self.predict_df.index)
+        else:
+            if stage == 'fit' or stage is None:
+                self.train_cont_df = self.train_df[self.continuous_cols]
+                self.val_cont_df = self.val_df[self.continuous_cols]
+            else:
+                self.cont_df = self.predict_df[self.continuous_cols]

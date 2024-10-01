@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Tuple, Union
 
+import pandas as pd
 import torch
 from PIL import Image
 from torch import Tensor
@@ -41,7 +42,64 @@ class AddGaussianNoise(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
-def preprocess_resnet(img: Image) -> Tensor:
+class CategoricalEncoder(object):
+    def __init__(self, categorical_cols, seperate_nominal_df: bool = True, sparse_nominal: bool = True):
+        self.categorical_cols = categorical_cols
+        self.df = None
+        self.original_df = None
+        self.ordinal_cols = None
+        self.nominal_cols = None
+        self.seperate_nominal_df = seperate_nominal_df
+        self.sparse_nominal = sparse_nominal
+
+    def _make_cols_categorical(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Checks if the provided categorical columns are categorical, if not, makes them categorical.  # noqa: D205  # noqa: D205
+        Note that: this assumes that the columns are nominal categorical variables.
+        """
+        for col in self.categorical_cols:
+            if not df[col].dtype == 'category':
+                df[col] = df[col].astype('category')
+        return df
+
+    def _find_categorical_type(self, df: pd.DataFrame) -> None:
+        """Finds the ordinal and nominal categorical varibles/columns in the dataframe."""
+        self.ordinal_cols = [col for col in self.categorical_cols if df[col].ordered]
+        self.nominal_cols = [col for col in self.categorical_cols if not df[col].ordered]
+
+    def _encode_nominal(self, df: pd.DataFrame) -> pd.DataFrame:
+        return pd.get_dummies(df, columns=self.nominal_cols, drop_first=True, sparse=self.sparse_nominal)
+
+    def _encode_ordinal(self, df: pd.DataFrame) -> pd.DataFrame:
+        df_dict = {}
+        for col in self.ordinal_cols:
+            df_dict[col] = df[col].cat.codes  # Label encoding
+        return pd.DataFrame(df_dict)
+
+    def __call__(self, df: pd.DataFrame) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
+        return self.fit_transform(df)
+
+    def fit(self, df: pd.DataFrame) -> None:
+        df = self._make_cols_categorical(df)
+        self._find_categorical_type(df)
+
+    def transform(self, df: pd.DataFrame) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
+        nominal_df = self._encode_nominal(df)
+        ordinal_df = self._encode_ordinal(df)
+        if self.seperate_nominal_df:
+            return nominal_df, ordinal_df
+        else:
+            df = pd.concat([nominal_df, ordinal_df], axis=1)
+            df = df.drop(columns=self.categorical_cols)
+            return pd.concat([nominal_df, ordinal_df], axis=1)
+
+    def fit_transform(self, df):
+        self.fit(df)
+        return self.transform(df)
+
+    def __repr__(self):
+        return self.__class__.__name__ + f'(categorical_columns={self.categorical_cols}, seperate_nominal_df={self.seperate_nominal_df})'
+
+def resnet_preprocess(img: Image) -> Tensor:
     img = img.convert('L')
     img = Image.merge("RGB", (img, img, img))
     _preprocess = transforms.Compose(
