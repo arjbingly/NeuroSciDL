@@ -2,37 +2,40 @@ from pathlib import Path
 
 import lightning as L
 import lightning.pytorch as pl
-import mlflow
 import torch
 import torchmetrics as tm
 from torchvision import models
 
-from callbacks import PrintMetricsTableCallback, MlFlowHyperParams, MlFlowModelSummary
-from dataset import ImageDataModule
-from model import ImgClassifier
-from transforms import preprocess
+from pytorch_boilerplate.callbacks import (
+    MlFlowHyperParams,
+    MlFlowModelSummary,
+    PrintMetricsTableCallback,
+)
+from pytorch_boilerplate.dataset import ImageDataModule
+from pytorch_boilerplate.model import PreTrainedImgClassifier
+from pytorch_boilerplate.transforms import preprocess_resnet
 
-
-# TODO: config file
-
-
+# ...Params...
 # Dataset
 DATA_DIR = Path('../../Data/resnet2')
 ANNOTATIONS_FILE = DATA_DIR / 'resnet_balanced_df.csv'
 BATCH_SIZE = 32
 FILENAME_COL = 'file'
 LABEL_COL = 'label'
-
 # Compute related
 ACCELERATOR = "gpu"  # use GPU
 PRECISION = 16  # 16-bit precision
 PROFILER = "simple"  # simple profiler
 USE_MLFLOW = True  # use MLFlow for logging
+# ..............
 
-
-datamodule = ImageDataModule(image_dir=DATA_DIR, annotations_file=ANNOTATIONS_FILE, batch_size=BATCH_SIZE,
-                             filename_col=FILENAME_COL, label_col=LABEL_COL,
-                             transform=preprocess, target_transform=lambda x: torch.tensor(x).unsqueeze(0).float(), )
+datamodule = ImageDataModule(image_dir=DATA_DIR,
+                             annotation_file=ANNOTATIONS_FILE,
+                             batch_size=BATCH_SIZE,
+                             filename_col=FILENAME_COL,
+                             label_col=LABEL_COL,
+                             transform=preprocess_resnet,
+                             target_transform=lambda x: torch.tensor(x).unsqueeze(0).float())
 
 # train model
 base_model = models.resnet50(pretrained=True)
@@ -44,9 +47,7 @@ metrics = [tm.classification.F1Score(task='binary', average='macro'),
            tm.classification.Precision(task='binary'),
            tm.classification.Recall(task='binary'), ]
 
-model = ImgClassifier(base_model, output_dim, trainable_base, metrics)
-
-
+model = PreTrainedImgClassifier(base_model, output_dim, trainable_base, metrics)
 
 trainer_args = {'max_epochs': 2,
                 # 'gpus': 1,
@@ -75,8 +76,6 @@ callbacks = [pl.callbacks.EarlyStopping(monitor='val_loss', patience=3),
              # pl.callbacks.RichModelSummary(),
              # pl.callbacks.RichProgressBar()
              ]
-
-
 
 if USE_MLFLOW:
     mlf_logger = pl.loggers.MLFlowLogger(log_model='all', tracking_uri='http://localhost:8080')
