@@ -6,83 +6,16 @@ from lightning import LightningDataModule
 from typing import Union
 import mne
 import numpy as np
-import warnings
 import json
-
-warnings.filterwarnings("ignore", module='mne')
-
-class CNTSampleAnnotator:
-    def __init__(self,
-                 file_annotations: pd.DataFrame,
-                 window_size: int= 500,
-                 window_stride: int = 500,
-                 window_start: int = 0,
-                 save_path: Union[str, Path] = '.',
-                 save_filename: str = 'sample_annotations',):
-        self.file_annotations = file_annotations
-        self.window_size = window_size
-        self.window_stride = window_stride
-        self.window_start = window_start
-        self.save_path = Path(save_path)
-        self.save_filename = save_filename
-
-    @classmethod
-    def read_cnt(file_path: Union[str, Path], data_format='auto', verbose=False):
-        file_path = Path(file_path)
-        if not file_path.is_file():
-            raise ValueError(f'Path {file_path} is not a file')
-        try:
-            data = mne.io.read_raw_cnt(file_path, preload=True, data_format=data_format, verbose=verbose)
-        except Exception as e:
-            print(f'Error reading file {file_path}: {e}')
-            return None
-        return data
-
-    def get_config(self):
-        return {
-            'window_size': self.window_size,
-            'window_stride': self.window_stride,
-            'window_start': self.window_start
-        }
-
-    @property
-    def config(self):
-        return self.get_config()
-
-    def save_config(self):
-        with open(self.save_path/f'{self.save_filename}_config.json', 'w') as f:
-            json.dump(self.config, f)
-
-    def get_sample_indices(self, n_samples):
-        start_indices = np.arange(self.window_start, n_samples - self.window_size, self.window_stride)
-        end_indices = start_indices + self.window_size
-        return list(zip(list(start_indices), list(end_indices)))
-
-    def get_sample_info(self):
-        sample_indices = map(self.get_sample_indices, self.file_annotations['n_times'])
-        records = []
-        for i, idx  in enumerate(sample_indices):
-            _record = self.file_annotations.iloc[i].to_dict()
-            for j, (start_idx, stop_idx) in enumerate(idx):
-                record = _record.copy()
-                record['sample_id'] = j
-                record['start_idx'] = start_idx
-                record['stop_idx'] = stop_idx
-                records.append(record)
-        return pd.DataFrame.from_records(records)
-
-    def __call__(self, *args, **kwargs):
-        self.sample_annotations = self.get_sample_info()
-        self.sample_annotations.to_csv(self.save_path/f'{self.save_filename}.csv', index=False)
-        self.save_config()
+from neuroscidl.eeg.annotator import CNTSampleAnnotator
 
 class EEGSampleDataset(Dataset):
-    def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, online_transforms=None):
+    def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, target_transform=None):
         super().__init__()
         self.data_dir = Path(data_dir)
         self.annotations_df = annotations_df
         self.transform = transform
-        self.online_transforms = online_transforms
+        self.target_transform = target_transform
 
     def __len__(self):
         return len(self.annotations_df)
@@ -95,7 +28,8 @@ class EEGSampleDataset(Dataset):
         data = mne.io.read_raw_cnt(file_path, data_format=data_format, verbose=verbose)
         return data
 
-    def pad_channels(self, data, pad_channels:int):
+    @staticmethod
+    def pad_channels(data, pad_channels:int):
         return np.pad(data, ((0,pad_channels),(0,0)), mode='constant', constant_values=0)
 
     def __getitem__(self, idx: int):
@@ -108,6 +42,10 @@ class EEGSampleDataset(Dataset):
         if self.annotations_df.iloc[idx]['n_channels'] == 32:
             data = self.pad_channels(data, 32)
         data = np.expand_dims(data, axis=0).astype(np.float32)
+        if self.transform:
+            data = self.transform(data)
+        if self.target_transform:
+            label = self.target_transform(label)
         return torch.from_numpy(data), torch.tensor([label])
 
 class EEGDataModule(LightningDataModule):
@@ -116,10 +54,10 @@ class EEGDataModule(LightningDataModule):
                  annotation_file: Union[str, Path],
                  batch_size: int,
                  # TODO: Custom annotations columns
-                 online_transforms=None,
-                 offline_transforms=None,
+                 train_transform=None,
+                 val_transform=None,
                  target_transform=None,
-                 window_config=(500,500,0), # window_size, window_stride, window_start,
+                 window_config=(500,500,0),  # window_size, window_stride, window_start,
                  num_workers: int = 0,
                  ):
 
@@ -128,8 +66,8 @@ class EEGDataModule(LightningDataModule):
         self.annotation_file = Path(annotation_file)
         self.annotations_df = None
         self.batch_size = batch_size
-        self.online_transforms = online_transforms
-        self.offline_transforms = offline_transforms
+        self.train_transform = train_transform
+        self.val_transform = val_transform
         self.target_transform = target_transform
         self.window_config = window_config
         self.num_workers = num_workers
@@ -178,21 +116,21 @@ class EEGDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.train_annotations, transform=self.offline_transforms, online_transforms=self.online_transforms),
+            EEGSampleDataset(self.data_dir, self.train_annotations, transform=self.train_transform),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.offline_transforms, online_transforms=self.online_transforms),
+            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)
 
     def test_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.offline_transforms, online_transforms=self.online_transforms),
+            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)
