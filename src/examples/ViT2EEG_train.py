@@ -4,10 +4,11 @@ import lightning as L
 import lightning.pytorch as pl
 import torchmetrics as tm
 import torch
+from torchvision.transforms.v2 import GaussianNoise
 
-from pytorch_boilerplate.callbacks import PrintMetricsTableCallback, MlFlowHyperParams, MlFlowModelSummary
-from pytorch_boilerplate.eeg_dataset import EEGDataModule
-from pytorch_boilerplate.eeg_model import EEGViT_pretrained
+from neuroscidl.callbacks import PrintMetricsTableCallback, MlFlowHyperParams, MlFlowModelSummary
+from neuroscidl.eeg.eeg_dataset import EEGDataModule
+from neuroscidl.eeg.eeg_model import EEGViT_pretrained
 
 # TODO: config file
 MODEL_NAME = 'EEGViT'
@@ -25,7 +26,16 @@ USE_MLFLOW = True  # use MLFlow for logging
 
 MAX_EPOCHS = 20
 
-datamodule = EEGDataModule(data_dir=DATA_DIR, annotation_file=ANNOTATIONS_FILE, batch_size=BATCH_SIZE, num_workers=10)
+# Gaussian noise
+experimental_mean = 0.008104733313294322
+experimental_std = 0.025660938145368836
+
+gaussian_mean = round(experimental_mean, 6)
+gaussian_std = round(experimental_std, 6) * 0.5
+
+gaussian_noise_transform = GaussianNoise(mean=gaussian_mean, sigma=gaussian_std, clip=False)
+
+datamodule = EEGDataModule(data_dir=DATA_DIR, annotation_file=ANNOTATIONS_FILE, batch_size=BATCH_SIZE, num_workers=10, train_transform=gaussian_noise_transform)
 
 # train model
 metrics = [tm.classification.F1Score(task='binary', average='macro'),
@@ -48,8 +58,8 @@ trainer_args = {'max_epochs': MAX_EPOCHS,
                 # DEBUG OPTIONS
                 # overfit_batches=1
                 # 'fast_dev_run': True,
-                # 'limit_train_batches': 0.1,
-                # 'limit_val_batches': 0.1,
+                'limit_train_batches': 0.1,
+                'limit_val_batches': 0.1,
                 }
 
 callbacks = [
