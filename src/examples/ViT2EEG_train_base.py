@@ -1,22 +1,27 @@
 from pathlib import Path
-
+from argparse import ArgumentParser
 import lightning as L
 import lightning.pytorch as pl
 import torchmetrics as tm
 import torch
 from torchvision.transforms.v2 import GaussianNoise
-
+import json
 from neuroscidl.callbacks import PrintMetricsTableCallback, MlFlowHyperParams, MlFlowModelSummary
 from neuroscidl.eeg.eeg_dataset import EEGDataModule
 from neuroscidl.eeg.eeg_model import EEGViT_pretrained
 
-# TODO: config file
-MODEL_NAME = 'EEGViT'
+USE_PARSER = True
 
 # Dataset
-DATA_DIR = Path('/home/arjbingly/SUNpY/data/eec')
-ANNOTATIONS_FILE = DATA_DIR / 'file_annotations.csv'
+DATA_DIR = Path('/data/eec')
+ANNOTATIONS_FILE = DATA_DIR / 'file_annotations.csv' # ignored by parser
 BATCH_SIZE = 128
+
+# Model Name
+MODEL_PREFIX = 'EEGViT_'
+
+# Noise Aug
+NOISE_CONFIG_FILENAME = 'noise_config.json'
 
 # Compute related
 ACCELERATOR = "gpu"  # use GPU
@@ -26,9 +31,29 @@ USE_MLFLOW = True  # use MLFlow for logging
 
 MAX_EPOCHS = 20
 
-# Gaussian noise
-experimental_mean = 0.008104733313294322
-experimental_std = 0.025660938145368836
+if USE_PARSER:
+    parser = ArgumentParser()
+    parser.add_argument('-f', '--file', type=str, help='Dataset filename')
+    args = parser.parse_args()
+    ANNOTATIONS_FILE = DATA_DIR / args.file
+
+# Model Name
+ds_name = ANNOTATIONS_FILE.name.replace("file_annotations_", "").split('.')[0]
+model_name = f'{MODEL_PREFIX}{ds_name}'
+
+# Check if file annotation exists
+if not ANNOTATIONS_FILE.exists():
+    raise FileNotFoundError(f'Annotation File {ANNOTATIONS_FILE} does not exist')
+
+# Noise Aug
+if not (DATA_DIR/NOISE_CONFIG_FILENAME).exists():
+    raise FileNotFoundError(f'Noise Config File {DATA_DIR/NOISE_CONFIG_FILENAME} does not exist')
+with open(DATA_DIR/NOISE_CONFIG_FILENAME, 'r') as f:
+    noise_config = json.load(f)
+
+noise_config = noise_config[Path(ANNOTATIONS_FILE).name]
+experimental_mean = noise_config['mean']
+experimental_std = noise_config['std']
 
 gaussian_mean = round(experimental_mean, 6)
 gaussian_std = round(experimental_std, 6) * 0.5
@@ -58,20 +83,20 @@ trainer_args = {'max_epochs': MAX_EPOCHS,
                 # DEBUG OPTIONS
                 # overfit_batches=1
                 # 'fast_dev_run': True,
-                'limit_train_batches': 0.1,
-                'limit_val_batches': 0.1,
+                # 'limit_train_batches': 0.1,
+                # 'limit_val_batches': 0.1,
                 }
 
 callbacks = [
     # pl.callbacks.EarlyStopping(monitor='val_loss', patience=6),
-     pl.callbacks.ModelCheckpoint(monitor='val_BinaryAccuracy', mode='max', save_top_k=2,
-                                  filename=f'{MODEL_NAME}'+'-{epoch:02d}-{val_BinaryAccuracy:.2f}'),
+    pl.callbacks.ModelCheckpoint(monitor='val_BinaryAccuracy', mode='max', save_top_k=2,
+                                 filename=f'{model_name}' + '-{epoch:02d}-{val_BinaryAccuracy:.2f}'),
     pl.callbacks.ModelCheckpoint(monitor='val_BinaryF1Score', mode='max', save_top_k=2,
-                                 filename=f'{MODEL_NAME}'+'-{epoch:02d}-{val_BinaryF1Score:.2f}'),
-     PrintMetricsTableCallback(table_format='pretty', skip_zero_epoch=True, decimal_precision=4),
-     MlFlowModelSummary(),
-     MlFlowHyperParams(trainer_args),
-             ]
+                                 filename=f'{model_name}' + '-{epoch:02d}-{val_BinaryF1Score:.2f}'),
+    PrintMetricsTableCallback(table_format='pretty', skip_zero_epoch=True, decimal_precision=4),
+    MlFlowModelSummary(),
+    MlFlowHyperParams(trainer_args),
+]
 
 torch.set_float32_matmul_precision('high')
 
