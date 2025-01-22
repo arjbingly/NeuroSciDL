@@ -1,13 +1,16 @@
+import json
 from pathlib import Path
-import torch
-import pandas as pd
-from torch.utils.data import DataLoader, Dataset
-from lightning import LightningDataModule
 from typing import Union
+
 import mne
 import numpy as np
-import json
+import pandas as pd
+import torch
+from lightning import LightningDataModule
 from neuroscidl.eeg.annotator import CNTSampleAnnotator
+from neuroscidl.eeg.utils import hash_df
+from torch.utils.data import DataLoader, Dataset
+
 
 class EEGSampleDataset(Dataset):
     def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, target_transform=None):
@@ -77,11 +80,11 @@ class EEGDataModule(LightningDataModule):
         assert self.annotation_file.exists(), f"Annotation file not found: {self.annotation_file}"
 
     def _validate_annotations(self) -> None:
-        assert 'filename' in self.annotations_df.columns, f"Column 'filename' not found in annotation file"
-        assert 'n_times' in self.annotations_df.columns, f"Column 'n_times' not found in annotation file"
-        assert 'freq' in self.annotations_df.columns, f"Column 'freq' not found in annotation file"
-        assert 'n_channels' in self.annotations_df.columns, f"Column 'n_channels' not found in annotation file"
-        assert 'label' in self.annotations_df.columns, f"Column 'label' not found in annotation file"
+        assert 'filename' in self.annotations_df.columns, "Column 'filename' not found in annotation file"
+        assert 'n_times' in self.annotations_df.columns, "Column 'n_times' not found in annotation file"
+        assert 'freq' in self.annotations_df.columns, "Column 'freq' not found in annotation file"
+        assert 'n_channels' in self.annotations_df.columns, "Column 'n_channels' not found in annotation file"
+        assert 'label' in self.annotations_df.columns, "Column 'label' not found in annotation file"
         for col in ['filename', 'n_times', 'freq', 'n_channels', 'label']:
             assert self.annotations_df[col].notnull().all(), f"Column '{col}' has missing values in annotation file"
         for file in self.annotations_df['filename']:
@@ -92,19 +95,28 @@ class EEGDataModule(LightningDataModule):
         self.annotations_df = pd.read_csv(self.annotation_file)
         self._validate_annotations()
 
-    def _annotate_samples(self):
-        if (self.data_dir/'sample_annotations_config.json').exists() and (self.data_dir/'sample_annotations.csv').exists():
-            with open(self.data_dir/'sample_annotations_config.json', 'r') as f:
+    def _check_cached_annotations(self):
+        sample_annotations_name = self.annotation_file.stem + '_sample_annotations'
+        sample_annotations_config = sample_annotations_name + '_config.json'
+        sample_annotations_filename = sample_annotations_name + '.csv'
+        if (self.data_dir/sample_annotations_config).exists() and (self.data_dir/sample_annotations_filename).exists():
+            with open(self.data_dir/sample_annotations_config, 'r') as f:
                 config = json.load(f)
-                # TODO: add a hash of both annotations file in the config
                 if config['window_size'] == self.window_config[0] and \
-                   config['window_stride'] == self.window_config[1] and \
-                   config['window_start'] == self.window_config[2]:
-                    return pd.read_csv(self.data_dir/'sample_annotations.csv')
+                    config['window_stride'] == self.window_config[1] and \
+                    config['window_start'] == self.window_config[2] and \
+                    config['file_annotations_hash'] == hash_df(self.annotations_df):
+                      print('Cached annotations found')
+                      return pd.read_csv(self.data_dir/sample_annotations_filename)
 
-        self.annotator = CNTSampleAnnotator(self.annotations_df, *self.window_config, save_path=self.data_dir, save_filename='sample_annotations')
-        self.annotator()
-        return pd.read_csv(self.data_dir/'sample_annotations.csv')
+
+    def _annotate_samples(self):
+        cached_annotations = self._check_cached_annotations()
+        if cached_annotations is None:
+            self.annotator = CNTSampleAnnotator(self.annotation_file, *self.window_config, save_path=self.data_dir, save_filename='sample_annotations')
+            return self.annotator()
+        else:
+            return cached_annotations
 
     def setup(self, stage=None):
         self.annotations_df = self._annotate_samples()

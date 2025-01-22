@@ -1,27 +1,37 @@
+import json
+import warnings
+from os import PathLike
 from pathlib import Path
-import pandas as pd
 from typing import Union
+
 import mne
 import numpy as np
-import warnings
-import json
+import pandas as pd
+from neuroscidl.eeg.utils import hash_df
 
 warnings.filterwarnings("ignore", module='mne')
 
 class CNTSampleAnnotator:
     def __init__(self,
-                 file_annotations: pd.DataFrame,
+                 file_annotations: Union[pd.DataFrame, PathLike],
                  window_size: int= 500,
                  window_stride: int = 500,
                  window_start: int = 0,
                  save_path: Union[str, Path] = '.',
-                 save_filename: str = 'sample_annotations',):
-        self.file_annotations = file_annotations
+                 save_suffix: str = 'sample_annotations',):
         self.window_size = window_size
         self.window_stride = window_stride
         self.window_start = window_start
         self.save_path = Path(save_path)
-        self.save_filename = save_filename
+        self.save_suffix = save_suffix
+        if isinstance(file_annotations, PathLike):
+            file_path = Path(file_annotations)
+            self.file_annotations = pd.read_csv(file_path)
+            self.save_filename = '_'.join([file_path.stem, self.save_suffix])
+        else:
+            self.file_annotations = file_annotations
+            self.save_filename = self.save_suffix
+
 
     @classmethod
     def read_cnt(file_path: Union[str, Path], data_format='auto', verbose=False):
@@ -39,7 +49,8 @@ class CNTSampleAnnotator:
         return {
             'window_size': self.window_size,
             'window_stride': self.window_stride,
-            'window_start': self.window_start
+            'window_start': self.window_start,
+            'file_annotations_hash': hash_df(self.file_annotations),
         }
 
     @property
@@ -72,3 +83,4 @@ class CNTSampleAnnotator:
         self.sample_annotations = self.get_sample_info()
         self.sample_annotations.to_csv(self.save_path/f'{self.save_filename}.csv', index=False)
         self.save_config()
+        return self.sample_annotations
