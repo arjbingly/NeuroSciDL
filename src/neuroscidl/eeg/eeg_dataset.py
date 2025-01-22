@@ -13,12 +13,13 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class EEGSampleDataset(Dataset):
-    def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, target_transform=None):
+    def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, target_transform=None, return_info=None):
         super().__init__()
         self.data_dir = Path(data_dir)
         self.annotations_df = annotations_df
         self.transform = transform
         self.target_transform = target_transform
+        self.return_info = return_info
 
     def __len__(self):
         return len(self.annotations_df)
@@ -49,7 +50,11 @@ class EEGSampleDataset(Dataset):
             data = self.transform(data)
         if self.target_transform:
             label = self.target_transform(label)
-        return torch.from_numpy(data), torch.tensor([label])
+        if self.return_info is None:
+            return torch.from_numpy(data), torch.tensor([label])
+        else:
+            info = self.annotations_df.iloc[idx][self.return_info]
+            return torch.from_numpy(data), torch.tensor([label]), info
 
 class EEGDataModule(LightningDataModule):
     def __init__(self,
@@ -113,7 +118,8 @@ class EEGDataModule(LightningDataModule):
     def _annotate_samples(self):
         cached_annotations = self._check_cached_annotations()
         if cached_annotations is None:
-            self.annotator = CNTSampleAnnotator(self.annotation_file, *self.window_config, save_path=self.data_dir, save_filename='sample_annotations')
+            print('Annotating samples')
+            self.annotator = CNTSampleAnnotator(self.annotation_file, *self.window_config, save_path=self.data_dir, save_suffix='sample_annotations')
             return self.annotator()
         else:
             return cached_annotations
@@ -135,14 +141,14 @@ class EEGDataModule(LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform),
+            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform, return_info='id'),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)
 
     def test_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform),
+            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform,return_info='id'),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)

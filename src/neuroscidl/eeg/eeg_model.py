@@ -9,6 +9,7 @@ import torch.nn as nn
 import torchmetrics as tm
 from torch import Tensor
 from torch.optim import Adam
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +90,11 @@ class EEGViT_pretrained(L.LightningModule):
             self.metrics = tm.MetricCollection(self.metrics)
         self.train_metrics = self.metrics.clone(prefix='train_')
         self.val_metrics = self.metrics.clone(prefix='val_')
+        self.sw_val_metrics = self.metrics.clone(prefix='subwise_val_')
         self.metrics.reset()
         self.val_metrics.reset()
         self.train_metrics.reset()
+        self.sw_val_metrics.reset()
 
     def forward(self, x):
         return self.model(x)
@@ -119,9 +122,37 @@ class EEGViT_pretrained(L.LightningModule):
         self.log_dict(self.train_scores)
         self.train_metrics.reset()
 
+    def accumulate_subjects(self, x, y, sub_id, mode='mean'):
+        sub_id = np.array(sub_id)
+        num_subjects = len(np.unique(sub_id))
+        # num_subjects = len(set(sub_id))
+        sub_x = torch.empty(num_subjects)
+        sub_y = torch.empty(num_subjects)
+        for idx, subject in enumerate(set(sub_id)):
+            mask = sub_id == subject
+            if mode == 'mean':
+                sub_x[idx] = torch.mean(x[mask], dim=0)
+            elif mode == 'median':
+                sub_x[idx] = torch.median(x[mask], dim=0)
+            # elif mode == 'max':
+            #     (x[mask] > 0.5).float()
+
+            else:
+                raise ValueError('Mode not recognized')
+            # check if all y[mask] are same
+            # if len(set(y[mask])) == 1:
+            if torch.all(y[mask] == y[mask][0]):
+                sub_y[idx] = y[mask][0]
+            else:
+                raise ValueError('Not all labels are same for a subject')
+        return sub_x.unsqueeze(1), sub_y.unsqueeze(1)
+
     def validation_step(self, batch, batch_idx):
-        loss, x, y = self._step(batch, batch_idx)
+        x,y,sub_id = batch
+        loss, x, y = self._step((x,y), batch_idx)
         self.val_metrics.update(x, y)
+        sub_x, sub_y = self.accumulate_subjects(x, y, sub_id)
+        self.sw_val_metrics.update(sub_x, sub_y)
         self.log('val_loss', loss, on_epoch=True, on_step=True, prog_bar=True)
         return loss
 
@@ -130,6 +161,9 @@ class EEGViT_pretrained(L.LightningModule):
         self.val_scores = self.val_metrics.compute()
         self.log_dict(self.val_scores)
         self.val_metrics.reset()
+        self.sw_val_scores = self.sw_val_metrics.compute()
+        self.log_dict(self.sw_val_scores)
+        self.sw_val_metrics.reset()
 
     def test_step(self, batch, batch_idx):
         """Defines the test step.
