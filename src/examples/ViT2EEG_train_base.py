@@ -1,20 +1,22 @@
-from pathlib import Path
+import json
 from argparse import ArgumentParser
+from pathlib import Path
+
 import lightning as L
 import lightning.pytorch as pl
-import torchmetrics as tm
 import torch
-from torchvision.transforms.v2 import GaussianNoise
-import json
+import torchmetrics as tm
 from neuroscidl.callbacks import PrintMetricsTableCallback, MlFlowHyperParams, MlFlowModelSummary
 from neuroscidl.eeg.eeg_dataset import EEGDataModule
 from neuroscidl.eeg.eeg_model import EEGViT_pretrained
+from neuroscidl.eeg.utils import filename_tagger
+from torchvision.transforms.v2 import GaussianNoise
 
 USE_PARSER = True
 
 # Dataset
 DATA_DIR = Path('/data/eec')
-ANNOTATIONS_FILE = DATA_DIR / 'file_annotations.csv' # ignored by parser
+ANNOTATIONS_FILE = DATA_DIR / 'file_annotations_bal_test.csv' # ignored by parser
 BATCH_SIZE = 128
 
 # Model Name
@@ -23,13 +25,18 @@ MODEL_PREFIX = 'EEGViT_'
 # Noise Aug
 NOISE_CONFIG_FILENAME = 'noise_config.json'
 
+# MLFLOW
+USE_MLFLOW = True  # use MLFlow for logging
+EXPERIMENT_NAME = 'TestBed'
+TRACKING_URI = 'http://localhost:8080'
+
 # Compute related
 ACCELERATOR = "gpu"  # use GPU
 # PRECISION = 16  # 16-bit precision
 # PROFILER = "simple"  # simple profiler
-USE_MLFLOW = True  # use MLFlow for logging
 
 MAX_EPOCHS = 20
+
 
 if USE_PARSER:
     parser = ArgumentParser()
@@ -85,6 +92,16 @@ trainer_args = {'max_epochs': MAX_EPOCHS,
                 # 'fast_dev_run': True,
                 # 'limit_train_batches': 0.1,
                 # 'limit_val_batches': 0.1,
+
+                # NOISE
+                'gaussian_mean': gaussian_mean,
+                'gaussian_std': gaussian_std,
+
+                # DATASET
+                'data_dir': DATA_DIR,
+                'annotation_file': ANNOTATIONS_FILE,
+                'batch_size': BATCH_SIZE,
+
                 }
 
 callbacks = [
@@ -100,8 +117,11 @@ callbacks = [
 
 torch.set_float32_matmul_precision('high')
 
+tags = filename_tagger(ANNOTATIONS_FILE.name)
+print(f'Tags: {tags}')
+
 if USE_MLFLOW:
-    mlf_logger = pl.loggers.MLFlowLogger(log_model='all', tracking_uri='http://localhost:8080')
+    mlf_logger = pl.loggers.MLFlowLogger(log_model='all',experiment_name=EXPERIMENT_NAME, tracking_uri=TRACKING_URI, tags=tags)
     # mlf_logger.log_hyperparams(trainer_args)
     trainer_args['logger'] = mlf_logger
 
