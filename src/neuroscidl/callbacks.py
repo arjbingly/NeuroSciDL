@@ -26,6 +26,8 @@ class MlFlowHyperParams(Callback):
         self.replaceable_keys = ['logger', 'profiler', 'plugins']
         self.log_callbacks = log_callbacks
         self.log_optimizers = log_optimizers
+        self.model_checkpoint_callbacks = {}
+        self.model_checkpoint_params = {}
 
     def replace_with_state_key(self, key: str) -> None:
         """Replaces the given key in params with its state key if it exists.
@@ -62,13 +64,28 @@ class MlFlowHyperParams(Callback):
         Args:
             trainer (pl.Trainer): The trainer instance.
         """
+        checkpoint_counter = 0
         if hasattr(trainer, 'callbacks'):
             for i, c in enumerate(trainer.callbacks):
                 if hasattr(c, 'state_dict'):
                     callback_name = c.__class__.__qualname__
-                    callback_params = c.state_dict()
-                    for p in callback_params:
-                        self.params[str(callback_name) + '-' + p] = callback_params[p]
+                    if callback_name == 'ModelCheckpoint':
+                        _callback_name = f'ModelCheckpoint_{checkpoint_counter}'
+                        self.model_checkpoint_callbacks[_callback_name] = c
+                        checkpoint_counter += 1
+                    else:
+                        callback_params = c.state_dict()
+                        for p in callback_params:
+                            self.params[str(callback_name) + '-' + p] = callback_params[p]
+
+    def get_model_checkpoint_info(self, trainer: "pl.Trainer") -> None:
+        """Logs model checkpoint information to params."""
+        for callback_name, callback in self.model_checkpoint_callbacks.items():
+            callback_params = callback.state_dict()
+            for p in callback_params:
+                if 'best_k_models' not in p:
+                    self.model_checkpoint_params[str(callback_name) + '-' + p] = callback_params[p]
+
 
     def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Called when fit starts.
@@ -85,6 +102,16 @@ class MlFlowHyperParams(Callback):
             self.replace_with_state_key(key)
         trainer.logger.log_hyperparams(self.params)
 
+
+    def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        """Called when fit ends.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The LightningModule instance.
+        """
+        self.get_model_checkpoint_info(trainer)
+        trainer.logger.log_hyperparams(self.model_checkpoint_params)
 
 class MlFlowModelSummary(Callback):
     """Logs model summary to MlFlow.
