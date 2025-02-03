@@ -21,8 +21,10 @@ class MlFlowHyperParams(Callback):
         log_optimizers (bool, optional): Whether to log optimizer parameters. Defaults to True.
     """
 
-    def __init__(self, params: Dict, log_callbacks=True, log_optimizers=True) -> None:
-        self.params = params
+    def __init__(self, mlflow_params: Dict, other_params:Optional[Dict]=None,log_callbacks=True, log_optimizers=True) -> None:
+        self.params = mlflow_params
+        if other_params is not None:
+            self.params.update(other_params)
         self.replaceable_keys = ['logger', 'profiler', 'plugins']
         self.log_callbacks = log_callbacks
         self.log_optimizers = log_optimizers
