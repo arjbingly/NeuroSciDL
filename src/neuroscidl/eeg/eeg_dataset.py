@@ -129,7 +129,9 @@ class EEGDataModule(LightningDataModule):
         if stage == 'fit' or stage is None:
             self.train_annotations = self.annotations_df[self.annotations_df['split']=='train']
             self.val_annotations = self.annotations_df[self.annotations_df['split']=='val']
-        if stage == 'test' or stage is None:
+        if stage == 'validate' or stage is None:
+            self.val_annotations = self.annotations_df[self.annotations_df['split']=='val']
+        if stage == 'test':
             self.test_annotations = self.annotations_df[self.annotations_df['split']=='test']
 
     def train_dataloader(self):
