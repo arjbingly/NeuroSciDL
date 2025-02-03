@@ -12,12 +12,17 @@ VERIFIER_PREFIX = 'file_annotations'
 VERIFIER_SUFFIX = '.csv'
 
 
-def filename_tagger(filename: str) -> dict:
-    tags = {'dataset': filename}
+def filename_tagger(filename: str, verbose=False) -> dict:
+    tags = {'dataset': filename,
+            'balanced': 'False',}
     flag, msg = verify_filename(filename)
+    if verbose:
+        print(msg)
     if flag:
         filename_splits = split_filename(filename)
-        tagger_funcs = [sex_filter_tagger, age_filter_tagger, bal_filter_tagger]
+        if verbose:
+            print(filename_splits)
+        tagger_funcs = [sex_filter_tagger, age_filter_tagger, bal_filter_tagger, dataset_version_tagger]
         for tagger_func in tagger_funcs:
             tags = reduce(lambda acc, txt: tagger_func(acc, txt), filename_splits, tags)
     return tags
@@ -62,6 +67,6 @@ def age_filter_tagger(tags, txt):
 def bal_filter_tagger(tags, txt):
     if txt == 'bal':
         tags.update({'balanced': 'True'})
-    else:
+    return tags
         tags.update({'balanced': 'False'})
     return tags
