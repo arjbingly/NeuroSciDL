@@ -68,5 +68,9 @@ def bal_filter_tagger(tags, txt):
     if txt == 'bal':
         tags.update({'balanced': 'True'})
     return tags
-        tags.update({'balanced': 'False'})
+
+
+def dataset_version_tagger(tags, txt):
+    if txt[0] == 'v' and txt[1:].isdigit():
+        tags.update({'dataset version': txt[1:]})
     return tags
