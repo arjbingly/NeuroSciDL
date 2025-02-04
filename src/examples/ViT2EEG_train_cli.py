@@ -12,6 +12,7 @@ class MyLightningCli(LightningCLI):
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument('--model_prefix', type=str, default='EEGViT')
         parser.add_argument('--dev_run', action='store_true', help='Run a development run')
+        # parser.link_arguments('data.annotation_file', 'data.train_transform.init_args.config_key')
 
     def before_instantiate_classes(self) -> None:
         if self.config['fit'].get('dev_run'):
@@ -30,6 +31,13 @@ class MyLightningCli(LightningCLI):
         if self.config['fit']['trainer'].get('logger') is not None:
             if str(self.config['fit']['trainer']['logger']['class_path']) == 'lightning.pytorch.loggers.MLFlowLogger':
                 self.config['fit']['trainer']['logger']['init_args']['tags'] = filename_tagger(Path(self.config['fit']['data']['annotation_file']).name)
+
+        if self.config['fit']['data'].get('train_transform') is not None:
+            if self.config['fit']['data']['train_transform'].get('init_args') is not None:
+                if self.config['fit']['data']['train_transform']['init_args'].get('config_key') is not None:
+                    if self.config['fit']['data']['train_transform']['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
+                        print('Warning: train_transform config_key does not match annotation_file')
+
 
 def cli_main():
     torch.set_float32_matmul_precision('high')
