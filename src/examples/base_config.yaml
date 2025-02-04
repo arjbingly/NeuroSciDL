@@ -166,7 +166,7 @@ fit:
     train_transform:
       class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
       init_args:
-            config_path: ${data_dir}noise_config.json
+            config_path: ${fit.data.data_dir}/noise_config.json
             config_key: ${fit.data.annotation_file}
             clip: false
     val_transform: null
