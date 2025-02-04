@@ -71,7 +71,7 @@ class EEGDataModule(LightningDataModule):
 
         super().__init__()
         self.data_dir = Path(data_dir)
-        self.annotation_file = Path(annotation_file)
+        self.annotation_file = self.data_dir / Path(annotation_file)
         self.annotations_df = None
         self.batch_size = batch_size
         self.train_transform = train_transform
