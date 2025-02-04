@@ -6,7 +6,9 @@ from typing import Dict, List, Optional
 import lightning.pytorch as pl
 import torch
 import torchinfo
+from lightning import Trainer, LightningModule
 from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.cli import SaveConfigCallback
 from pytorch_lightning.utilities import rank_zero_info
 from tabulate import tabulate
 from torchinfo.torchinfo import INPUT_DATA_TYPE, INPUT_SIZE_TYPE
@@ -345,3 +347,34 @@ class PrintMetricsTableCallback(Callback):
         table2_lines = table2.splitlines()
         return tabulate([list(item) for item in zip(table1_lines, table2_lines)], headers=headers,
                         tablefmt=self.table_format)
+
+# This class is necessary due to a bug in the current implementation of the SaveConfigCallback when used in conjunction with MLFlowLogger
+# Refer to: https://github.com/Lightning-AI/pytorch-lightning/issues/16310
+# Solution based on:
+#   https://github.com/Lightning-AI/pytorch-lightning/issues/16310#issuecomment-2371750960
+#   https://github.com/Lightning-AI/pytorch-lightning/issues/16310#issuecomment-1980538782
+
+class MLFlowSaveConfigCallback(SaveConfigCallback):
+    def __init__(self, parser, config, config_filename='config.yaml', overwrite=False, multifile=False, store_artifact=True, log_hyperparams=True):
+        super().__init__(parser, config, config_filename, overwrite, multifile, save_to_log_dir=False)
+        self.store_artifact = store_artifact
+        self.log_hyperparams = log_hyperparams
+
+    def save_config(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+        # Convert Namespace to dict
+        config_dict = vars(self.config)
+
+        if self.log_hyperparams:
+            # Log parameters to MLFlow
+            pl_module.logger.log_hyperparams(config_dict)
+
+        if self.store_artifact:
+            # Log artifact, save as yaml
+            if trainer.is_global_zero:
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    config_path = Path(tmp_dir) / 'config.yaml'
+                    self.parser.save(
+                        self.config, config_path, skip_none=False, overwrite=self.overwrite, multifile=self.multifile
+                    )
+                    trainer.logger.experiment.log_artifact(local_path=config_path,
+                                                           run_id=trainer.logger.run_id)
