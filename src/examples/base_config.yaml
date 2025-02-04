@@ -1,0 +1,182 @@
+fit:
+  seed_everything: true
+  trainer:
+    accelerator: auto
+    strategy: auto
+    devices: auto
+    num_nodes: 1
+    precision: null
+    logger:
+      class_path: lightning.pytorch.loggers.MLFlowLogger
+      init_args:
+        log_model: all
+        experiment_name: TestBed
+        tracking_uri: http://localhost:8080
+    callbacks:
+      - class_path: lightning.pytorch.callbacks.EarlyStopping
+        init_args:
+          monitor: val_BinaryAccuracy
+          min_delta: 0.0
+          patience: 6
+          verbose: false
+          mode: max
+          strict: true
+          check_finite: true
+          stopping_threshold: null
+          divergence_threshold: null
+          check_on_train_epoch_end: null
+          log_rank_zero_only: false
+      - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+        init_args:
+          dirpath: null
+          filename: null
+          monitor: val_BinaryAccuracy
+          verbose: false
+          save_last: true
+          save_top_k: 2
+          save_weights_only: false
+          mode: max
+          auto_insert_metric_name: true
+          every_n_train_steps: null
+          train_time_interval: null
+          every_n_epochs: null
+          save_on_train_epoch_end: null
+          enable_version_counter: true
+      - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+        init_args:
+          dirpath: null
+          filename: null
+          monitor: val_BinaryF1Score
+          verbose: false
+          save_last: true
+          save_top_k: 2
+          save_weights_only: false
+          mode: max
+          auto_insert_metric_name: true
+          every_n_train_steps: null
+          train_time_interval: null
+          every_n_epochs: null
+          save_on_train_epoch_end: null
+          enable_version_counter: true
+      - class_path: neuroscidl.callbacks.PrintMetricsTableCallback
+        init_args:
+          table_format: pretty
+          skip_zero_epoch: true
+          decimal_precision: 4
+      - class_path: neuroscidl.callbacks.MlFlowModelSummary
+    fast_dev_run: false
+    max_epochs: 20
+    min_epochs: null
+    max_steps: -1
+    min_steps: null
+    max_time: null
+    limit_train_batches: null
+    limit_val_batches: null
+    limit_test_batches: null
+    limit_predict_batches: null
+    overfit_batches: 0.0
+    val_check_interval: null
+    check_val_every_n_epoch: 1
+    num_sanity_val_steps: null
+    log_every_n_steps: null
+    enable_checkpointing: null
+    enable_progress_bar: null
+    enable_model_summary: null
+    accumulate_grad_batches: 1
+    gradient_clip_val: null
+    gradient_clip_algorithm: null
+    deterministic: null
+    benchmark: null
+    inference_mode: true
+    use_distributed_sampler: true
+    profiler: null
+    detect_anomaly: false
+    barebones: false
+    plugins: null
+    sync_batchnorm: false
+    reload_dataloaders_every_n_epochs: 0
+    default_root_dir: null
+
+  model:
+    trainable_base: true
+    output_dim: 1
+    model_params: null
+    metrics:
+      - class_path: torchmetrics.F1Score
+        init_args:
+          task: binary
+          threshold: 0.5
+          num_classes: null
+          num_labels: null
+          average: macro
+          multidim_average: global
+          top_k: 1
+          ignore_index: null
+          validate_args: true
+          zero_division: 0.0
+          compute_on_cpu: false
+          dist_sync_on_step: false
+          process_group: null
+          dist_sync_fn: null
+          distributed_available_fn: null
+          sync_on_compute: true
+          compute_with_cache: true
+      - class_path: torchmetrics.Accuracy
+        init_args:
+          task: binary
+          threshold: 0.5
+          num_classes: null
+          num_labels: null
+          average: micro
+          multidim_average: global
+          top_k: 1
+          ignore_index: null
+          validate_args: true
+          zero_division: 0
+      - class_path: torchmetrics.Precision
+        init_args:
+          task: binary
+          threshold: 0.5
+          num_classes: null
+          num_labels: null
+          average: micro
+          multidim_average: global
+          top_k: 1
+          ignore_index: null
+          validate_args: true
+          zero_division: 0
+      - class_path: torchmetrics.Recall
+        init_args:
+          task: binary
+          threshold: 0.5
+          num_classes: null
+          num_labels: null
+          average: micro
+          multidim_average: global
+          top_k: 1
+          ignore_index: null
+          validate_args: true
+          zero_division: 0
+    criterion: null
+    lr: 0.001
+  data:
+    data_dir: /data/eec
+    annotation_file: file_annotations_bal_v2.csv
+    batch_size: 128
+    train_transform:
+      class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
+      init_args:
+            config_path: ${data_dir}noise_config.json
+            config_key: ${fit.data.annotation_file}
+            clip: false
+    val_transform: null
+    target_transform: null
+    window_config:
+      - 500
+      - 500
+      - 0
+    num_workers: 10
+  model_prefix: EEGViT
+  optimizer: null
+  lr_scheduler: null
+  ckpt_path: null
