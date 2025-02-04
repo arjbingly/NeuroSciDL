@@ -16,7 +16,7 @@ USE_PARSER = True
 
 # Dataset
 DATA_DIR = Path('/data/eec')
-ANNOTATIONS_FILE = DATA_DIR / 'file_annotations_bal_test.csv' # ignored by parser
+ANNOTATIONS_FILE = 'file_annotations_bal_test.csv' # default value in parser
 BATCH_SIZE = 128
 
 # Model Name
@@ -27,7 +27,7 @@ NOISE_CONFIG_FILENAME = 'noise_config.json'
 
 # MLFLOW
 USE_MLFLOW = True  # use MLFlow for logging
-EXPERIMENT_NAME = 'TestBed'
+EXPERIMENT_NAME = 'V2'
 TRACKING_URI = 'http://localhost:8080'
 
 # Compute related
@@ -36,13 +36,15 @@ ACCELERATOR = "gpu"  # use GPU
 # PROFILER = "simple"  # simple profiler
 
 MAX_EPOCHS = 20
+# MAX_EPOCHS = 3
 
 
 if USE_PARSER:
     parser = ArgumentParser()
-    parser.add_argument('-f', '--file', type=str, help='Dataset filename')
+    parser.add_argument('-f', '--file', type=str, help='Dataset filename', default=ANNOTATIONS_FILE)
+
     args = parser.parse_args()
-    ANNOTATIONS_FILE = DATA_DIR / args.file
+    ANNOTATIONS_FILE = args.file
 
 # Model Name
 ds_name = ANNOTATIONS_FILE.name.replace("file_annotations_", "").split('.')[0]
@@ -92,17 +94,17 @@ trainer_args = {'max_epochs': MAX_EPOCHS,
                 # 'fast_dev_run': True,
                 # 'limit_train_batches': 0.1,
                 # 'limit_val_batches': 0.1,
-
-                # NOISE
-                'gaussian_mean': gaussian_mean,
-                'gaussian_std': gaussian_std,
-
-                # DATASET
-                'data_dir': DATA_DIR,
-                'annotation_file': ANNOTATIONS_FILE,
-                'batch_size': BATCH_SIZE,
-
                 }
+other_params = {
+    # NOISE
+    'gaussian_mean': gaussian_mean,
+    'gaussian_std':  gaussian_std,
+
+    # DATASET
+    'data_dir':        DATA_DIR,
+    'annotation_file': ANNOTATIONS_FILE,
+    'batch_size':      BATCH_SIZE,
+}
 
 callbacks = [
     # pl.callbacks.EarlyStopping(monitor='val_loss', patience=6),
