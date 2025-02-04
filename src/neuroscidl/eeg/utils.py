@@ -13,8 +13,8 @@ VERIFIER_SUFFIX = '.csv'
 
 
 def filename_tagger(filename: str, verbose=False) -> dict:
-    tags = {'dataset': filename,
-            'balanced': 'False',}
+    tags = {'dataset': str(filename),
+            'balanced': 'N',}
     flag, msg = verify_filename(filename)
     if verbose:
         print(msg)
@@ -66,11 +66,11 @@ def age_filter_tagger(tags, txt):
 
 def bal_filter_tagger(tags, txt):
     if txt == 'bal':
-        tags.update({'balanced': 'True'})
+        tags.update({'balanced': 'Y'})
     return tags
 
 
 def dataset_version_tagger(tags, txt):
     if txt[0] == 'v' and txt[1:].isdigit():
-        tags.update({'dataset version': txt[1:]})
+        tags.update({'dataset_version': txt})
     return tags
