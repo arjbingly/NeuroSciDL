@@ -355,12 +355,30 @@ class PrintMetricsTableCallback(Callback):
 #   https://github.com/Lightning-AI/pytorch-lightning/issues/16310#issuecomment-1980538782
 
 class MLFlowSaveConfigCallback(SaveConfigCallback):
+    """A callback to save the configuration file and log it to MLFlow.
+
+        Args:
+            parser (LightningArgumentParser): The argument parser used to parse the configuration.
+            config (Namespace): The configuration namespace.
+            config_filename (str, optional): The name of the configuration file. Defaults to 'config.yaml'.
+            overwrite (bool, optional): Whether to overwrite the existing configuration file. Defaults to False.
+            multifile (bool, optional): Whether to save the configuration in multiple files. Defaults to False.
+            store_artifact (bool, optional): Whether to store the configuration as an artifact in MLFlow. Defaults to True.
+            log_hyperparams (bool, optional): Whether to log the configuration as hyperparameters in MLFlow. Defaults to True.
+        """
     def __init__(self, parser, config, config_filename='config.yaml', overwrite=False, multifile=False, store_artifact=True, log_hyperparams=True):
         super().__init__(parser, config, config_filename, overwrite, multifile, save_to_log_dir=False)
         self.store_artifact = store_artifact
         self.log_hyperparams = log_hyperparams
 
     def save_config(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+        """Saves the configuration and logs it to MLFlow.
+
+         Args:
+             trainer (Trainer): The trainer instance.
+             pl_module (LightningModule): The LightningModule instance.
+             stage (str): The stage of the training process.
+         """
         # Convert Namespace to dict
         config_dict = vars(self.config)
 
