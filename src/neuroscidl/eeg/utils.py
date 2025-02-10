@@ -1,6 +1,7 @@
 from functools import reduce
 from hashlib import sha256
-
+from os import PathLike
+from pathlib import Path
 
 def hash_df(df):
     return sha256(df.to_csv(index=False).encode()).hexdigest()
@@ -14,7 +15,8 @@ VERIFIER_SUFFIX = '.csv'
 
 def filename_tagger(filename: str, verbose=False) -> dict:
     tags = {'dataset': str(filename),
-            'balanced': 'N',}
+            'balanced': 'N',
+            }
     flag, msg = verify_filename(filename)
     if verbose:
         print(msg)
@@ -22,7 +24,11 @@ def filename_tagger(filename: str, verbose=False) -> dict:
         filename_splits = split_filename(filename)
         if verbose:
             print(filename_splits)
-        tagger_funcs = [sex_filter_tagger, age_filter_tagger, bal_filter_tagger, dataset_version_tagger]
+        tagger_funcs = [sex_filter_tagger,
+                        age_filter_tagger,
+                        bal_filter_tagger,
+                        dataset_version_tagger,
+                        label_type_tagger]
         for tagger_func in tagger_funcs:
             tags = reduce(lambda acc, txt: tagger_func(acc, txt), filename_splits, tags)
     return tags
