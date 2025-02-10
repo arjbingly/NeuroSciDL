@@ -12,6 +12,7 @@ fit:
         log_model: all
         experiment_name: TestBed
         tracking_uri: http://localhost:8080
+        artifact_location: /data/mlflow
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
@@ -60,6 +61,10 @@ fit:
           enable_version_counter: true
       - class_path: neuroscidl.callbacks.PrintMetricsTableCallback
         init_args:
+          metric_categories:
+            "train_": "Train Metrics"
+            "val_": "Val Metrics"
+            "subwise_val_": "Sub-wise Val Metrics"
           table_format: pretty
           skip_zero_epoch: true
           decimal_precision: 4
@@ -166,7 +171,7 @@ fit:
     train_transform:
       class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
       init_args:
-            config_path: ${fit.data.data_dir}/noise_config.json
+            config_path: ${fit.data.data_dir}/noise_config.json # Do not change, does not play well with utils.CalculateEEGDist
             config_key: ${fit.data.annotation_file}
             clip: false
     val_transform: null
@@ -176,6 +181,7 @@ fit:
       - 500
       - 0
     num_workers: 10
+    label_col: label
   model_prefix: EEGViT
   optimizer: null
   lr_scheduler: null
