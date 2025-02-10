@@ -13,13 +13,20 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class EEGSampleDataset(Dataset):
-    def __init__(self, data_dir: Union[str, Path], annotations_df: pd.DataFrame,transform=None, target_transform=None, return_info=None):
+    def __init__(self,
+                 data_dir: Union[str, Path],
+                 annotations_df: pd.DataFrame,
+                 transform=None,
+                 target_transform=None,
+                 return_info=None,
+                 label_col: str='label'):
         super().__init__()
         self.data_dir = Path(data_dir)
         self.annotations_df = annotations_df
         self.transform = transform
         self.target_transform = target_transform
         self.return_info = return_info
+        self.label_col = label_col
 
     def __len__(self):
         return len(self.annotations_df)
@@ -38,7 +45,7 @@ class EEGSampleDataset(Dataset):
 
     def __getitem__(self, idx: int):
         file_path = self.data_dir / self.annotations_df.iloc[idx, 0]
-        label = self.annotations_df.iloc[idx]['label'].astype(np.float32)
+        label = self.annotations_df.iloc[idx][self.label_col].astype(np.float32)
         start_idx = self.annotations_df.iloc[idx]['start_idx']
         stop_idx = self.annotations_df.iloc[idx]['stop_idx']
         raw = self.read_cnt(file_path)
@@ -67,6 +74,7 @@ class EEGDataModule(LightningDataModule):
                  target_transform=None,
                  window_config=(500,500,0),  # window_size, window_stride, window_start,
                  num_workers: int = 0,
+                 label_col='label'
                  ):
 
         super().__init__()
@@ -79,6 +87,7 @@ class EEGDataModule(LightningDataModule):
         self.target_transform = target_transform
         self.window_config = window_config
         self.num_workers = num_workers
+        self.label_col = label_col
 
     def _validate_files(self) -> None:
         assert self.data_dir.exists(), f"Data directory not found: {self.data_dir}"
@@ -89,8 +98,8 @@ class EEGDataModule(LightningDataModule):
         assert 'n_times' in self.annotations_df.columns, "Column 'n_times' not found in annotation file"
         assert 'freq' in self.annotations_df.columns, "Column 'freq' not found in annotation file"
         assert 'n_channels' in self.annotations_df.columns, "Column 'n_channels' not found in annotation file"
-        assert 'label' in self.annotations_df.columns, "Column 'label' not found in annotation file"
-        for col in ['filename', 'n_times', 'freq', 'n_channels', 'label']:
+        assert self.label_col in self.annotations_df.columns, f"Column {self.label_col} not found in annotation file"
+        for col in ['filename', 'n_times', 'freq', 'n_channels', self.label_col]:
             assert self.annotations_df[col].notnull().all(), f"Column '{col}' has missing values in annotation file"
         for file in self.annotations_df['filename']:
             assert (self.data_dir/file).exists(), f"File {file} not found in {self.data_dir}"
@@ -136,21 +145,21 @@ class EEGDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.train_annotations, transform=self.train_transform),
+            EEGSampleDataset(self.data_dir, self.train_annotations, transform=self.train_transform, label_col=self.label_col),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform, return_info='id'),
+            EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform, return_info='id', label_col=self.label_col),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)
 
     def test_dataloader(self):
         return DataLoader(
-            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform,return_info='id'),
+            EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform,return_info='id', label_col=self.label_col),
             batch_size=self.batch_size,
             num_workers=0,
             shuffle=False)
