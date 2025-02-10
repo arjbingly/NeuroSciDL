@@ -1,7 +1,7 @@
 import copy
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Mapping
 
 import lightning.pytorch as pl
 import torch
@@ -234,6 +234,8 @@ class PrintMetricsTableCallback(Callback):
     """Prints a table with the metrics in columns on every epoch end.
 
     Args:
+        metric_categories (Optional[Mapping[str, str]]): The mapping of metric prefixes to category names.
+            Defaults to {"train_": “Train Metrics”, "val_": “Val Metrics”}.
         table_format (str, optional): The format of the table. Defaults to 'pretty'.
             Refer to the tabulate documentation for all possible values.
         skip_zero_epoch (bool, optional): Whether to skip printing the table for the zero epoch. Defaults to True.
@@ -244,12 +246,14 @@ class PrintMetricsTableCallback(Callback):
         see the tabulate documentation: https://github.com/astanin/python-tabulate
     """
 
-    def __init__(self, table_format: str = 'pretty', skip_zero_epoch: bool = True, decimal_precision: int = 4) -> None:
+    def __init__(self,
+                 metric_categories: Optional[Mapping[str, str]] = None,
+                 table_format: str = 'pretty',
+                 skip_zero_epoch: bool = True,
+                 decimal_precision: int = 4) -> None:
         self.metrics: Dict = {}
-        self.val_prefix: str = "val_"
-        self.train_prefix: str = "train_"
-        self.val_metrics: Dict = {}
-        self.train_metrics: Dict = {}
+        self.metric_categories: Optional[Mapping[str, str]] = metric_categories or {"train_": "Train Metrics", "val_": "Val Metrics"}
+        self.category_metrics: Dict[str,Dict] = {category: {} for category in self.metric_categories.values()}
         self.table_format: str = table_format
         self.skip_zero_epoch = skip_zero_epoch
         self.decimal_precision = decimal_precision
@@ -273,17 +277,14 @@ class PrintMetricsTableCallback(Callback):
             trainer (pl.Trainer): The trainer instance.
             pl_module (pl.LightningModule): The LightningModule instance.
         """
-        if self.skip_zero_epoch:
-            if trainer.current_epoch == 0:
-                return
+        if self.skip_zero_epoch and trainer.current_epoch == 0:
+            return
 
         self.metrics = copy.copy(trainer.callback_metrics)
         self.metrics = self.format_dict(self.metrics)
-        self.seperate_train_val_metrics()
-        table_headers = ['Metric', 'Score']
-        val_metrics_table = self.metrics_to_table(self.val_metrics, table_headers)
-        train_metrics_table = self.metrics_to_table(self.train_metrics, table_headers)
-        table = self.sidebyside_table(train_metrics_table, val_metrics_table, headers=['Train Metrics', 'Val Metrics'])
+        self.separate_metrics_by_category()
+        tables = [self.metrics_to_table(self.category_metrics[category], headers=['Metric', 'Score']) for category in self.metric_categories.values()]
+        table = self.sidebyside_tables(tables, headers=list(self.category_metrics.keys()))
         rank_zero_info(self.format_table(table))
 
     def format_dict(self, dict: Dict) -> Dict:
@@ -301,7 +302,8 @@ class PrintMetricsTableCallback(Callback):
                 _dict[key] = round(float(value), self.decimal_precision)
         return _dict
 
-    def format_table(self, table: str) -> str:
+    @staticmethod
+    def format_table(table: str) -> str:
         """Formats the table string.
 
         Args:
@@ -312,13 +314,12 @@ class PrintMetricsTableCallback(Callback):
         """
         return '\n' + table
 
-    def seperate_train_val_metrics(self):
-        """Separates the training and validation metrics."""
+    def separate_metrics_by_category(self):
+        """Separates the metrics into categories."""
         for metric_name, metric_score in self.metrics.items():
-            if metric_name.startswith(self.val_prefix):
-                self.val_metrics[metric_name.removeprefix(self.val_prefix)] = metric_score
-            elif metric_name.startswith(self.train_prefix):
-                self.train_metrics[metric_name.removeprefix(self.train_prefix)] = metric_score
+            for prefix, category in self.metric_categories.items():
+                if metric_name.startswith(prefix):
+                    self.category_metrics[category][metric_name.removeprefix(prefix)] = metric_score
 
     def metrics_to_table(self, dict: Dict, headers: List[str]) -> str:
         """Converts the metrics dictionary to a table string.
@@ -332,21 +333,18 @@ class PrintMetricsTableCallback(Callback):
         """
         return tabulate(dict.items(), headers=headers, tablefmt=self.table_format, numalign='decimal')
 
-    def sidebyside_table(self, table1: str, table2: str, headers: List[str]) -> str:
+    def sidebyside_tables(self, tables:List[str], headers: List[str]) -> str:
         """Combines two tables side by side.
 
         Args:
-            table1 (str): The first table string.
-            table2 (str): The second table string.
+            tables (List[str]): The list of table strings.
             headers (List[str]): The headers for the combined table.
 
         Returns:
             str: The combined table string.
         """
-        table1_lines = table1.splitlines()
-        table2_lines = table2.splitlines()
-        return tabulate([list(item) for item in zip(table1_lines, table2_lines)], headers=headers,
-                        tablefmt=self.table_format)
+        table_lines = [table.splitlines() for table in tables]
+        return tabulate([list(item) for item in zip(*table_lines)], headers=headers, tablefmt=self.table_format)
 
 # This class is necessary due to a bug in the current implementation of the SaveConfigCallback when used in conjunction with MLFlowLogger
 # Refer to: https://github.com/Lightning-AI/pytorch-lightning/issues/16310
