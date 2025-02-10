@@ -74,3 +74,19 @@ def dataset_version_tagger(tags, txt):
     if txt[0] == 'v' and txt[1:].isdigit():
         tags.update({'dataset_version': txt})
     return tags
+
+def label_type_tagger(tags, txt):
+    match txt:
+        case "ald4dx":
+            tags.update({'label': 'Alcohol'})
+        case "mdd4dx":
+            tags.update({'label': 'Depression'})
+        case "mdd4dx-all":
+            tags.update({'label': 'Depression'})
+        case "cod4dx":
+            tags.update({'label': 'Cocaine'})
+        case "mjd4dx":
+            tags.update({'label': 'Marijuana'})
+        case "opd4dx":
+            tags.update({'label': 'Opioid'})
+    return tags
