@@ -1,20 +1,17 @@
-import torch
-from torch import nn
-import transformers
 import logging
 from typing import List, Optional, Union
 
 import lightning as L
+import numpy as np
+import torch
 import torch.nn as nn
 import torchmetrics as tm
-from torch import Tensor
-from torch.optim import Adam
-import numpy as np
+import transformers
 
 logger = logging.getLogger(__name__)
 
 class _EEGViT_pretrained(nn.Module):
-    def __init__(self, model_params=None):
+    def __init__(self, model_params=None, num_classes=1):
         super().__init__()
         self.model_params = {
         'conv_out_channels' : 256,
@@ -27,7 +24,7 @@ class _EEGViT_pretrained(nn.Module):
         'vit_model_name' : "google/vit-base-patch16-224",
         'embedding_dim' : 768,
         'hidden_size' : 1000,
-        'dropout_rate' : 0.1}
+        'dropout_rate' : 0.1,}
         if model_params is not None:
             self.model_params.update(model_params)
         self.conv1 = nn.Conv2d(
@@ -53,7 +50,7 @@ class _EEGViT_pretrained(nn.Module):
                                                                            groups=self.model_params['conv_out_channels'])
         model.classifier=torch.nn.Sequential(torch.nn.Linear(self.model_params['embedding_dim'],self.model_params['hidden_size'],bias=True),
                                              torch.nn.Dropout(p=self.model_params['dropout_rate']),
-                                             torch.nn.Linear(self.model_params['hidden_size'],1,bias=True))
+                                             torch.nn.Linear(self.model_params['hidden_size'],num_classes,bias=True))
         self.ViT = model
 
     def forward(self,x):
@@ -66,7 +63,7 @@ class EEGViT_pretrained(L.LightningModule):
     def __init__(self, trainable_base: bool=True, output_dim: int = 1, model_params=None, metrics: Union[None, List[tm.Metric], tm.MetricCollection] = None,
                  criterion: Optional[nn.Module] = None, lr=1e-3):
         super().__init__()
-        self.model = _EEGViT_pretrained(model_params)
+        self.model = _EEGViT_pretrained(model_params, output_dim)
         if not trainable_base:
             self.model.eval()
         if criterion is None:
