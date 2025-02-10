@@ -1,3 +1,8 @@
+"""CLI Interface for training EEGViT model.
+
+Example:
+    python ViT2EEG_train_cli.py -c config.yaml fit --dev_run --data.annotation_file file_annotations.csv
+"""
 from pathlib import Path
 
 import torch
@@ -5,7 +10,7 @@ from lightning.pytorch.cli import LightningCLI, LightningArgumentParser
 from neuroscidl.callbacks import MLFlowSaveConfigCallback
 from neuroscidl.eeg.eeg_dataset import EEGDataModule
 from neuroscidl.eeg.eeg_model import EEGViT_pretrained
-from neuroscidl.eeg.utils import filename_tagger
+from neuroscidl.eeg.utils import filename_tagger, CalculateEEGDist
 
 
 class MyLightningCli(LightningCLI):
@@ -41,14 +46,24 @@ class MyLightningCli(LightningCLI):
         # Update MLFlow logger tags
         if self.config['fit']['trainer'].get('logger') is not None:
             if str(self.config['fit']['trainer']['logger']['class_path']) == 'lightning.pytorch.loggers.MLFlowLogger':
+                print('Updating MLFlow logger tags...')
                 self.config['fit']['trainer']['logger']['init_args']['tags'] = filename_tagger(Path(self.config['fit']['data']['annotation_file']).name)
+                print(f"{Path(self.config['fit']['data']['annotation_file']).name}:{self.config['fit']['trainer']['logger']['init_args']['tags']}")
 
         # Validate train_transform config_key is same as annotation_file
         if self.config['fit']['data'].get('train_transform') is not None:
             if self.config['fit']['data']['train_transform'].get('init_args') is not None:
                 if self.config['fit']['data']['train_transform']['init_args'].get('config_key') is not None:
                     if self.config['fit']['data']['train_transform']['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
-                        print('Warning: train_transform config_key does not match annotation_file')
+                        print('Warning: train_transform config_key is not the same as annotation_file, will be updated.')
+                        self.config['fit']['data']['train_transform']['init_args']['config_key'] = self.config['fit']['data']['annotation_file']
+
+        # Checks if config for file exists in noise_config.json else create
+        noise_config_key = self.config['fit']['data']['train_transform']['init_args']['config_key']
+        print('Checking noise config...')
+        calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
+        calculator(noise_config_key)
+
 
 
 def cli_main():
