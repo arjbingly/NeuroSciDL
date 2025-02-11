@@ -10,8 +10,8 @@ fit:
       class_path: lightning.pytorch.loggers.MLFlowLogger
       init_args:
         log_model: all
-        experiment_name: TestBed
-        tracking_uri: http://localhost:8080
+        experiment_name: lightning_logs
+        tracking_uri: http://synaptron.tail1be567.ts.net:8080
         artifact_location: /data/mlflow
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
