@@ -25,45 +25,71 @@ class MyLightningCli(LightningCLI):
         parser.add_argument('--dev_run', action='store_true', help='Run a development run')
         # parser.link_arguments('data.annotation_file', 'data.train_transform.init_args.config_key')
 
-    def before_instantiate_classes(self) -> None:
-        """Modify the configuration before instantiating classes."""
-        # Define dev_run
-        if self.config['fit'].get('dev_run'):
-            print('Running a development run....')
-            self.config['fit']['trainer']['max_epochs'] = 2
-            self.config['fit']['trainer']['limit_train_batches'] = 10
-            self.config['fit']['trainer']['limit_val_batches'] = 10
-            self.config['fit']['trainer']['logger']['init_args']['experiment_name'] = 'TestBed'
+    def dev_run(self):
+        """Set the config to run a development run."""
+        print('Running a development run....')
+        self.config['fit']['trainer']['max_epochs'] = 2
+        self.config['fit']['trainer']['limit_train_batches'] = 10
+        self.config['fit']['trainer']['limit_val_batches'] = 10
+        self.config['fit']['trainer']['logger']['init_args']['experiment_name'] = 'TestBed'
 
-        # Extract dataset name from annotation file
+    def update_modelcheckpoint_callback(self):
+        """Update the ModelCheckpoint callback filename."""
         ds_name = Path(self.config['fit']['data']['annotation_file']).name.replace("file_annotations_", "").split('.')[0]
-        # Update ModelCheckpoint callback filename
         for i, cb in enumerate(self.config['fit']['trainer']['callbacks']):
             if 'ModelCheckpoint' in cb['class_path']:
-                self.config['fit']['trainer']['callbacks'][i]['init_args']['filename'] =\
+                self.config['fit']['trainer']['callbacks'][i]['init_args']['filename'] = \
                     (f"{self.config['fit']['model_prefix']}_{ds_name}" +
                      '-{epoch:02d}-{' + f"{self.config['fit']['trainer']['callbacks'][i]['init_args']['monitor']}" +':.2f}')
 
-        # Update MLFlow logger tags
-        if self.config['fit']['trainer'].get('logger') is not None:
-            if str(self.config['fit']['trainer']['logger']['class_path']) == 'lightning.pytorch.loggers.MLFlowLogger':
-                print('Updating MLFlow logger tags...')
-                self.config['fit']['trainer']['logger']['init_args']['tags'] = filename_tagger(Path(self.config['fit']['data']['annotation_file']).name)
-                print(f"{Path(self.config['fit']['data']['annotation_file']).name}:{self.config['fit']['trainer']['logger']['init_args']['tags']}")
+    def update_mlflow_tags(self):
+        """Update the MLFlow logger tags."""
+        print('Updating MLFlow logger tags...')
+        self.config['fit']['trainer']['logger']['init_args']['tags'] = filename_tagger(
+            Path(self.config['fit']['data']['annotation_file']).name)
+        print(
+            f"{Path(self.config['fit']['data']['annotation_file']).name}:{self.config['fit']['trainer']['logger']['init_args']['tags']}")
 
-        # Validate train_transform config_key is same as annotation_file
-        if self.config['fit']['data'].get('train_transform') is not None:
-            if self.config['fit']['data']['train_transform'].get('init_args') is not None:
-                if self.config['fit']['data']['train_transform']['init_args'].get('config_key') is not None:
-                    if self.config['fit']['data']['train_transform']['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
-                        print('Warning: train_transform config_key is not the same as annotation_file, will be updated.')
-                        self.config['fit']['data']['train_transform']['init_args']['config_key'] = self.config['fit']['data']['annotation_file']
+    def verify_noise_config_key(self, modify=True):
+        """Validate train_transform config_key is same as annotation_file."""
+        if self.config['fit']['data']['train_transform']['init_args'].get('config_key') is not None:
+            if self.config['fit']['data']['train_transform']['init_args']['config_key'] != self.config['fit']['data'][
+                'annotation_file']:
+                if modify:
+                    print('Warning: train_transform config_key is not the same as annotation_file, will be updated.')
+                    self.config['fit']['data']['train_transform']['init_args']['config_key'] = self.config['fit']['data'][
+                        'annotation_file']
+                else:
+                    print('Warning: train_transform config_key is not the same as annotation_file.')
 
-        # Checks if config for file exists in noise_config.json else create
+    def find_noise_config(self):
+        """Checks if config for file exists in noise_config.json else create."""
         noise_config_key = self.config['fit']['data']['train_transform']['init_args']['config_key']
         print('Checking noise config...')
         calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
         calculator(noise_config_key)
+
+    def before_instantiate_classes(self) -> None:
+        """Modify the configuration before instantiating classes."""
+        # Define dev_run
+        if self.config['fit'].get('dev_run'):
+            self.dev_run()
+
+        # Update ModelCheckpoint callback filename
+        self.update_modelcheckpoint_callback()
+
+        # Update MLFlow logger tags
+        if self.config['fit']['trainer'].get('logger') is not None:
+            if str(self.config['fit']['trainer']['logger']['class_path']) == 'lightning.pytorch.loggers.MLFlowLogger':
+                self.update_mlflow_tags()
+
+        # Noise config
+        if self.config['fit']['data'].get('train_transform') is not None:
+            if self.config['fit']['data']['train_transform'].get('init_args') is not None:
+                # Validate train_transform config_key is same as annotation_file
+                self.verify_noise_config_key(modify=True)
+                # Checks if config for file exists in noise_config.json else create
+                self.find_noise_config()
 
 
 def cli_main():
