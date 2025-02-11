@@ -32,6 +32,9 @@ class MyLightningCli(LightningCLI):
         self.config['fit']['trainer']['limit_train_batches'] = 10
         self.config['fit']['trainer']['limit_val_batches'] = 10
         self.config['fit']['trainer']['logger']['init_args']['experiment_name'] = 'TestBed'
+        for i, cl in enumerate(self.config['fit']['trainer']['callbacks']):
+            if 'neuroscidl.callbacks.NotifyCallback' in str(cl):
+                del self.config['fit']['trainer']['callbacks'][i]
 
     def update_modelcheckpoint_callback(self):
         """Update the ModelCheckpoint callback filename."""
