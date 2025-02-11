@@ -1,5 +1,7 @@
 import copy
+import os
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Mapping
 
@@ -9,6 +11,7 @@ import torchinfo
 from lightning import Trainer, LightningModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.cli import SaveConfigCallback
+from notifiers.providers.pushover import Pushover
 from pytorch_lightning.utilities import rank_zero_info
 from tabulate import tabulate
 from torchinfo.torchinfo import INPUT_DATA_TYPE, INPUT_SIZE_TYPE
@@ -394,3 +397,131 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
                     )
                     trainer.logger.experiment.log_artifact(local_path=config_path,
                                                            run_id=trainer.logger.run_id)
+
+class NotifyCallback(Callback):
+    """A callback to send notifications using PushOver when training starts and ends.
+    The callback requires the environment variables NOTIFIERS_PUSHOVER_USER and NOTIFIERS_PUSHOVER_TOKEN to be set.
+
+    Args:
+        send_start (bool, optional): Whether to send a notification when training starts. Defaults to True.
+        send_end (bool, optional): Whether to send a notification when training ends. Defaults to True.
+        verbose (bool, optional): Whether to print the notification details. Defaults to True.
+    """
+
+    def __init__(self, send_start: bool = True, send_end:bool = True, verbose=True) -> None:
+        self.send_start = send_start
+        self.send_end = send_end
+        self.notifier = Pushover()
+        self.user_key_var = 'NOTIFIERS_PUSHOVER_USER'
+        self.token_var = 'NOTIFIERS_PUSHOVER_TOKEN'
+        self.verbose = verbose
+        self.notified_start = False
+
+    def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage: str) -> None:
+        """Called when the training stage is set up.
+        Checks for user_id and token in the environment variables.
+        Extracts the run_url from the trainer logger.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The LightningModule instance.
+            stage (str): The stage of the training process.
+        """
+        if stage == 'fit':
+            self.check_env_vars()
+        self.run_url = self.get_run_url(trainer)
+
+    def check_env_vars(self):
+        """Checks if the environment variables for user_id and token are set."""
+        if os.environ.get(self.user_key_var) is None or os.environ.get(self.token_var) is None:
+            raise ValueError(f'Environment variables {self.user_key_var} and {self.token_var} must be set.')
+
+    def get_run_url(self, trainer: "pl.Trainer") -> str:
+        """Generates the run URL from the trainer logger."""
+        return f'{trainer.logger._tracking_uri}/#/experiments/{trainer.logger.experiment_id}/runs/{trainer.logger.run_id}'
+
+    def get_run_info(self, trainer: "pl.Trainer") -> str:
+        """Gets the run information from the trainer logger.
+        Returns:
+            mlflow.entities.RunInfo: The run information.
+            It contains the following attributes:
+            - artifact_uri
+            - end_time
+            - experiment_id
+            - lifecycle_stage
+            - run_id
+            - run_name
+            - run_uuid
+            - start_time
+            - status
+            - user_id
+        """
+        return trainer.logger.experiment.get_run(trainer.logger.run_id).info
+
+    def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        """Called when fit starts.
+        It sends a notification if send_start is True.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The LightningModule instance.
+        """
+        if self.send_start:
+            info = self.get_run_info(trainer)
+            msg_title = 'Training Started 🚀'
+            msg_body = f'Training run {info.run_name} has started.\nStarted on: {datetime.fromtimestamp(info.start_time/1000).strftime('%a %d %b %Y, %I:%M%p')}'
+            self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
+            self.notified_start = True
+            if self.verbose:
+                print('Notification sent.')
+                print('Message Title: ',msg_title)
+                print('Message Body: ',msg_body)
+                print('Run URL: ',self.run_url)
+
+
+    def on_exception(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", exception: BaseException) -> None:
+        """Called when an exception occurs.
+        It sends a notification of a failed run if the initial start notification was sent.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The LightningModule instance.
+            exception (BaseException): The exception that occurred.
+        """
+        if self.notified_start:
+            info = self.get_run_info(trainer)
+            run_duration = datetime.now() - datetime.fromtimestamp(info.start_time / 1000)
+            msg_title = 'Training Failed 🚨'
+            msg_body = f'Training run {info.run_name} has failed due to the following exception: {exception}\nApprox. Duration: {str(run_duration)}'
+            self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
+            if self.verbose:
+                print('Notification sent.')
+                print('Message Title: ',msg_title)
+                print('Message Body: ',msg_body)
+                print('Run URL: ', self.run_url)
+
+    def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        """Called when fit ends.
+        It sends a notification if send_end is True.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The LightningModule instance.
+        """
+        if self.send_end:
+            info = self.get_run_info(trainer)
+            if info.end_time is not None:
+                run_duration = datetime.fromtimestamp(info.end_time / 1000) - datetime.fromtimestamp(info.start_time / 1000)
+            else:
+                run_duration = datetime.now() - datetime.fromtimestamp(info.start_time / 1000)
+            msg_title = 'Training Failed 🚨'
+            msg_body = f'Training run {info.run_name} has failed. \n Approx. Duration: {str(run_duration)}.'
+            if info.status == 'RUNNING':
+                msg_title = 'Training Completed 🎉'
+                msg_body = f'Training run {trainer.logger.name} has completed successfully. \nApprox. Duration: {str(run_duration)}.'
+            self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
+            if self.verbose:
+                print('Notification sent.')
+                print('Message Title: ',msg_title)
+                print('Message Body: ',msg_body)
+                print('Run URL: ', self.run_url)
