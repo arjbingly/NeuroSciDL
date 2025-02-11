@@ -33,6 +33,7 @@ class MyLightningCli(LightningCLI):
             self.config['fit']['trainer']['max_epochs'] = 2
             self.config['fit']['trainer']['limit_train_batches'] = 10
             self.config['fit']['trainer']['limit_val_batches'] = 10
+            self.config['fit']['trainer']['logger']['init_args']['experiment_name'] = 'TestBed'
 
         # Extract dataset name from annotation file
         ds_name = Path(self.config['fit']['data']['annotation_file']).name.replace("file_annotations_", "").split('.')[0]
@@ -63,7 +64,6 @@ class MyLightningCli(LightningCLI):
         print('Checking noise config...')
         calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
         calculator(noise_config_key)
-
 
 
 def cli_main():
