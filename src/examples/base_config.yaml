@@ -170,6 +170,7 @@ fit:
     lr: 0.001
   data:
     data_dir: /data/eec
+    annotation_dir: ${fit.data.data_dir}/annotations
     annotation_file: file_annotations_bal_v2.csv
     batch_size: 128
     train_transform:
