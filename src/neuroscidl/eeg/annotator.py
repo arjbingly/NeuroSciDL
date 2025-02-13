@@ -18,12 +18,14 @@ class CNTSampleAnnotator:
                  window_stride: int = 500,
                  window_start: int = 0,
                  save_path: Union[str, Path] = '.',
-                 save_suffix: str = 'sample_annotations',):
+                 save_suffix: str = 'sample_annotations',
+                 overwrite: bool = False,):
         self.window_size = window_size
         self.window_stride = window_stride
         self.window_start = window_start
         self.save_path = Path(save_path)
         self.save_suffix = save_suffix
+        self.overwrite = overwrite
         if isinstance(file_annotations, PathLike):
             file_path = Path(file_annotations)
             self.file_annotations = pd.read_csv(file_path)
@@ -58,7 +60,7 @@ class CNTSampleAnnotator:
         return self.get_config()
 
     def save_config(self):
-        with open(self.save_path/f'{self.save_filename}_config.json', 'w') as f:
+        with open(self.save_path/f'.{self.save_filename}.json', 'w') as f:
             json.dump(self.config, f)
 
     def get_sample_indices(self, n_samples):
@@ -79,8 +81,23 @@ class CNTSampleAnnotator:
                 records.append(record)
         return pd.DataFrame.from_records(records)
 
+    def get_cached_annotations(self):
+        sample_annotations_config = '.'+self.save_filename + '.json'
+        sample_annotations_filename = self.save_filename + '.csv'
+        if (self.save_path/sample_annotations_config).exists() and (self.save_path/sample_annotations_filename).exists():
+            with open(self.save_path/sample_annotations_config, 'r') as f:
+                config = json.load(f)
+                if config == self.config:
+                    return pd.read_csv(self.save_path/sample_annotations_filename)
+
     def __call__(self, *args, **kwargs):
+        if not self.overwrite:
+            sample_annotations = self.get_cached_annotations()
+            if sample_annotations is not None:
+                print('Found cached sample annotations.')
+                return sample_annotations
         self.sample_annotations = self.get_sample_info()
         self.sample_annotations.to_csv(self.save_path/f'{self.save_filename}.csv', index=False)
         self.save_config()
+        print('Saved sample annotations.')
         return self.sample_annotations

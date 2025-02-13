@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import Union
 
@@ -8,7 +7,6 @@ import pandas as pd
 import torch
 from lightning import LightningDataModule
 from neuroscidl.eeg.annotator import CNTSampleAnnotator
-from neuroscidl.eeg.utils import hash_df
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -66,6 +64,7 @@ class EEGSampleDataset(Dataset):
 class EEGDataModule(LightningDataModule):
     def __init__(self,
                  data_dir: Union[str, Path],
+                 annotation_dir: Union[str, Path],
                  annotation_file: Union[str, Path],
                  batch_size: int,
                  # TODO: Custom annotations columns
@@ -79,7 +78,8 @@ class EEGDataModule(LightningDataModule):
 
         super().__init__()
         self.data_dir = Path(data_dir)
-        self.annotation_file = self.data_dir / Path(annotation_file)
+        self.annotation_dir = Path(annotation_dir)
+        self.annotation_file = self.annotation_dir / Path(annotation_file)
         self.annotations_df = None
         self.batch_size = batch_size
         self.train_transform = train_transform
@@ -109,29 +109,13 @@ class EEGDataModule(LightningDataModule):
         self.annotations_df = pd.read_csv(self.annotation_file)
         self._validate_annotations()
 
-    def _check_cached_annotations(self):
-        sample_annotations_name = self.annotation_file.stem + '_sample_annotations'
-        sample_annotations_config = sample_annotations_name + '_config.json'
-        sample_annotations_filename = sample_annotations_name + '.csv'
-        if (self.data_dir/sample_annotations_config).exists() and (self.data_dir/sample_annotations_filename).exists():
-            with open(self.data_dir/sample_annotations_config, 'r') as f:
-                config = json.load(f)
-                if config['window_size'] == self.window_config[0] and \
-                    config['window_stride'] == self.window_config[1] and \
-                    config['window_start'] == self.window_config[2] and \
-                    config['file_annotations_hash'] == hash_df(self.annotations_df):
-                      print('Cached annotations found')
-                      return pd.read_csv(self.data_dir/sample_annotations_filename)
-
-
     def _annotate_samples(self):
-        cached_annotations = self._check_cached_annotations()
-        if cached_annotations is None:
-            print('Annotating samples')
-            self.annotator = CNTSampleAnnotator(self.annotation_file, *self.window_config, save_path=self.data_dir, save_suffix='sample_annotations')
-            return self.annotator()
-        else:
-            return cached_annotations
+        self.annotator = CNTSampleAnnotator(self.annotation_file,
+                                            *self.window_config,
+                                            save_path=self.annotation_dir,
+                                            save_suffix='sample_annotations',
+                                            overwrite=False)
+        return self.annotator()
 
     def setup(self, stage=None):
         self.annotations_df = self._annotate_samples()
