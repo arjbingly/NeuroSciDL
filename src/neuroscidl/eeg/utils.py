@@ -201,6 +201,9 @@ def read_cnt(file_path: PathLike, data_format='auto', verbose=False) -> Optional
     Returns:
         Optional[mne.io.Raw]: The raw data object or None if an error occurs.
     """
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise ValueError(f'Path {file_path} is not a file')
     try:
         data = mne.io.read_raw_cnt(file_path, preload=True, data_format=data_format, verbose=verbose)
     except Exception as e:
