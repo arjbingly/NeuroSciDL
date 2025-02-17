@@ -10,7 +10,7 @@ fit:
       class_path: lightning.pytorch.loggers.MLFlowLogger
       init_args:
         log_model: all
-        experiment_name: lightning_logs
+        experiment_name: V2
         tracking_uri: http://synaptron.tail1be567.ts.net:8080
         artifact_location: /data/mlflow
     callbacks:
@@ -174,11 +174,15 @@ fit:
     annotation_file: file_annotations_bal_v2.csv
     batch_size: 128
     train_transform:
-      class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
-      init_args:
-            config_path: ${fit.data.data_dir}/noise_config.json # Do not change, does not play well with utils.CalculateEEGDist
-            config_key: ${fit.data.annotation_file}
-            clip: false
+      - class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
+        init_args:
+          config_path: ${fit.data.data_dir}/noise_config.json # Do not change, does not play well with utils.CalculateEEGDist
+          config_key: ${fit.data.annotation_file}
+          clip: false
+      - class_path: neuroscidl.eeg.transforms.ZTransform
+        init_args:
+          config_path: ${fit.data.data_dir}/noise_config.json
+          config_key: ${fit.data.annotation_file}
     val_transform: null
     target_transform: null
     window_config:
