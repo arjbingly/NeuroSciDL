@@ -1,9 +1,10 @@
 import json
+from os import PathLike
 
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List
 import torch
 from torch import Tensor
 from torchvision.transforms.v2 import GaussianNoise
@@ -19,6 +20,23 @@ experimental_std = 0.025660938145368836
 default_mean = round(experimental_mean, 6)
 default_std = round(experimental_std, 6) * 0.5
 
+def read_transform_config(config_path: Union[str, PathLike], dataset_key: str, query_keys: Union[List[str], str]):
+        result = []
+        with open(config_path, 'r') as f:
+            noise_config = json.load(f)
+        if isinstance(query_keys, str):
+            query_keys = [query_keys]
+        if noise_config.get(dataset_key) is None:
+            raise ValueError(f'No config found for dataset {dataset_key}')
+        else:
+            for key in query_keys:
+                _result = noise_config[dataset_key].get(key)
+                if _result is None:
+                    raise ValueError(f'No config found for key {key} in dataset {dataset_key}')
+                else:
+                    result.append(_result)
+        return result
+
 class GaussianNoiseTransform(object):
     """Transform to add Gaussian noise to a tensor.
     This transform can be initialized with a configuration file and key to get the mean and std of the noise.
@@ -29,7 +47,7 @@ class GaussianNoiseTransform(object):
         std (float, optional): Standard deviation of the Gaussian noise.
     """
     def __init__(self,
-                 config_path: Optional[Union[str, Path]] = None,
+                 config_path: Optional[Union[str, PathLike]] = None,
                  config_key: Optional[str]=None,
                  mean: Optional[float] = default_mean,
                  std: float = default_std,
@@ -42,10 +60,9 @@ class GaussianNoiseTransform(object):
         if self.config_path is not None:
             if self.config_key is None:
                 raise ValueError('config_key must be provided if config_path is provided')
-            with open(config_path, 'r') as f:
-                noise_config = json.load(f)
-            self.mean = noise_config[config_key]['mean']
-            self.std = noise_config[config_key]['std']
+            self.mean, self.std = read_transform_config(config_path = self.config_path,
+                                                        dataset_key=self.config_key,
+                                                        query_keys=['mean', 'std'])
         else:
             self.mean = mean
             self.std = std
