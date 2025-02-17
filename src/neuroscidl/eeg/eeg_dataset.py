@@ -21,10 +21,10 @@ class EEGSampleDataset(Dataset):
         super().__init__()
         self.data_dir = Path(data_dir)
         self.annotations_df = annotations_df
-        self.transform = transform
-        self.target_transform = target_transform
         self.return_info = return_info
         self.label_col = label_col
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         return len(self.annotations_df)
@@ -41,6 +41,19 @@ class EEGSampleDataset(Dataset):
     def pad_channels(data, pad_channels:int):
         return np.pad(data, ((0,pad_channels),(0,0)), mode='constant', constant_values=0)
 
+    @staticmethod
+    def apply_transform(data, transform):
+        if transform is None:
+            return data
+        elif callable(transform):
+            return  transform(data)
+        elif isinstance(transform, list):
+            for t in transform:
+                data = t(data)
+            return data
+        else:
+            raise TypeError(f'Transform should be callable or list of callables, but got {type(transform)}')
+
     def __getitem__(self, idx: int):
         file_path = self.data_dir / self.annotations_df.iloc[idx, 0]
         label = self.annotations_df.iloc[idx][self.label_col].astype(np.float32)
@@ -51,10 +64,10 @@ class EEGSampleDataset(Dataset):
         if self.annotations_df.iloc[idx]['n_channels'] == 32:
             data = self.pad_channels(data, 32)
         data = np.expand_dims(data, axis=0).astype(np.float32)
-        if self.transform:
-            data = self.transform(data)
-        if self.target_transform:
-            label = self.target_transform(label)
+
+        data = self.apply_transform(data, self.transform)
+        label = self.apply_transform(label, self.target_transform)
+
         if self.return_info is None:
             return torch.from_numpy(data), torch.tensor([label])
         else:
