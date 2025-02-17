@@ -88,3 +88,30 @@ class GaussianNoiseTransform(object):
                     f'(config_path={self.config_path}, config_key={self.config_key}, mean={self.mean}, std={self.std})')
         else:
             return self.__class__.__name__ + f'(mean={self.mean}, std={self.std})'
+
+class ZTransform(object):
+    def __init__(self, config_path: Optional[Union[str, PathLike]] = None,
+                 config_key: Optional[str]=None,
+                 mean: float = 0.0,
+                 std: float = 1.0,
+                 with_std=True,
+                 with_mean=True):
+        # TODO: resolve mean and std from config given with_std and with_mean
+        self.config_path = config_path
+        self.config_key = config_key
+        self.mean = mean
+        self.std = std
+        self.with_std = with_std
+        self.with_mean = with_mean
+        if self.config_path is not None:
+            if self.config_key is None:
+                raise ValueError('config_key must be provided if config_path is provided')
+            self.mean, self.std = read_transform_config(config_path = self.config_path,
+                                                        dataset_key=self.config_key,
+                                                        query_keys=['mean', 'std'])
+        else:
+            self.mean = mean
+            self.std = std
+
+    def __call__(self, tensor: Tensor) -> Tensor:
+        return (tensor - self.mean) / self.std
