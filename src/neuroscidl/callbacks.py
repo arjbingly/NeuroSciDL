@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Mapping
 import lightning.pytorch as pl
 import torch
 import torchinfo
+from jsonargparse import namespace_to_dict, Namespace
 from lightning import Trainer, LightningModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.cli import SaveConfigCallback
@@ -372,6 +373,41 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
         self.store_artifact = store_artifact
         self.log_hyperparams = log_hyperparams
 
+    def config_to_log(self, config: Namespace) -> Dict:
+        """Converts the configuration namespace to a dictionary for hyperparameter logging.
+
+        Args:
+            config (Namespace): The configuration namespace.
+
+        Returns:
+            Dict: The configuration dictionary for logging.
+        """
+        config_dict = namespace_to_dict(config)
+        config_dict = self.convert_list_to_dict(config_dict)
+
+        return config_dict
+
+    def convert_list_to_dict(self, config: Dict) -> Dict:
+        """Recursively converts lists in the configuration dictionary to a more readable format.
+
+        Args:
+            config (Dict): The configuration dictionary.
+
+        Returns:
+            Dict: The converted configuration dictionary.
+        """
+        new_config = {}
+        for key, value in config.items():
+            if isinstance(value, list):
+                new_config[key] = {i: self.convert_list_to_dict(v) if isinstance(v, dict) else v for i, v in
+                                   enumerate(value)}
+            elif isinstance(value, dict):
+                new_config[key] = self.convert_list_to_dict(value)
+            else:
+                new_config[key] = value
+        return new_config
+
+            Dict: The converted configuration dictionary.
     def save_config(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """Saves the configuration and logs it to MLFlow.
 
@@ -384,6 +420,8 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
         config_dict = vars(self.config)
 
         if self.log_hyperparams:
+            # Convert Namespace to loggable dict
+            config_dict = self.config_to_log(self.config)
             # Log parameters to MLFlow
             pl_module.logger.log_hyperparams(config_dict)
 
