@@ -27,7 +27,8 @@ class MlFlowHyperParams(Callback):
         log_optimizers (bool, optional): Whether to log optimizer parameters. Defaults to True.
     """
 
-    def __init__(self, mlflow_params: Dict, other_params:Optional[Dict]=None,log_callbacks=True, log_optimizers=True) -> None:
+    def __init__(self, mlflow_params: Dict, other_params: Optional[Dict] = None, log_callbacks=True,
+                 log_optimizers=True) -> None:
         self.params = mlflow_params
         if other_params is not None:
             self.params.update(other_params)
@@ -94,7 +95,6 @@ class MlFlowHyperParams(Callback):
                 if 'best_k_models' not in p:
                     self.model_checkpoint_params[str(callback_name) + '-' + p] = callback_params[p]
 
-
     def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Called when fit starts.
 
@@ -110,7 +110,6 @@ class MlFlowHyperParams(Callback):
             self.replace_with_state_key(key)
         trainer.logger.log_hyperparams(self.params)
 
-
     def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Called when fit ends.
 
@@ -120,6 +119,7 @@ class MlFlowHyperParams(Callback):
         """
         self.get_model_checkpoint_info(trainer)
         trainer.logger.log_hyperparams(self.model_checkpoint_params)
+
 
 class MlFlowModelSummary(Callback):
     """Logs model summary to MlFlow.
@@ -146,15 +146,10 @@ class MlFlowModelSummary(Callback):
         network is performed, and the provided model information is limited to layer names.
     """
 
-    def __init__(self,
-                 input_size: Optional[INPUT_SIZE_TYPE] = None,
-                 input_data: Optional[INPUT_DATA_TYPE] = None,
-                 output_size: Optional[INPUT_SIZE_TYPE] = None,
-                 batch_dim: Optional[int] = None,
-                 device: Optional[torch.device] = None,
-                 dtypes: Optional[List[torch.dtype]] = None,
-                 log_artifact: bool = True,
-                 log_summary_as_param: bool = False) -> None:
+    def __init__(self, input_size: Optional[INPUT_SIZE_TYPE] = None, input_data: Optional[INPUT_DATA_TYPE] = None,
+                 output_size: Optional[INPUT_SIZE_TYPE] = None, batch_dim: Optional[int] = None,
+                 device: Optional[torch.device] = None, dtypes: Optional[List[torch.dtype]] = None,
+                 log_artifact: bool = True, log_summary_as_param: bool = False) -> None:
         self.input_size = input_size
         self.output_size = output_size
         self.input_data = input_data
@@ -200,17 +195,11 @@ class MlFlowModelSummary(Callback):
             if hasattr(pl_module, 'output_size'):
                 self.output_size = pl_module.output_size
 
-        model_summary = torchinfo.summary(pl_module,
-                                          input_size=self.input_size,
-                                          input_data=self.input_data,
-                                          batch_dim=self.batch_dim,
-                                          device=self.device,
-                                          dtypes=self.dtypes,
-                                          verbose=0)
+        model_summary = torchinfo.summary(pl_module, input_size=self.input_size, input_data=self.input_data,
+                                          batch_dim=self.batch_dim, device=self.device, dtypes=self.dtypes, verbose=0)
         if self.log_summary_as_param:
             trainer.logger.log_hyperparams({'model_summary': str(model_summary)})
-        other_info = {'total_params': model_summary.total_params,
-                      'trainable_params': model_summary.trainable_params}
+        other_info = {'total_params': model_summary.total_params, 'trainable_params': model_summary.trainable_params}
 
         if self.input_size is not None:
             other_info['input_size'] = self.input_size
@@ -250,14 +239,12 @@ class PrintMetricsTableCallback(Callback):
         see the tabulate documentation: https://github.com/astanin/python-tabulate
     """
 
-    def __init__(self,
-                 metric_categories: Optional[Mapping[str, str]] = None,
-                 table_format: str = 'pretty',
-                 skip_zero_epoch: bool = True,
-                 decimal_precision: int = 4) -> None:
+    def __init__(self, metric_categories: Optional[Mapping[str, str]] = None, table_format: str = 'pretty',
+                 skip_zero_epoch: bool = True, decimal_precision: int = 4) -> None:
         self.metrics: Dict = {}
-        self.metric_categories: Optional[Mapping[str, str]] = metric_categories or {"train_": "Train Metrics", "val_": "Val Metrics"}
-        self.category_metrics: Dict[str,Dict] = {category: {} for category in self.metric_categories.values()}
+        self.metric_categories: Optional[Mapping[str, str]] = metric_categories or {"train_": "Train Metrics",
+                                                                                    "val_":   "Val Metrics"}
+        self.category_metrics: Dict[str, Dict] = {category: {} for category in self.metric_categories.values()}
         self.table_format: str = table_format
         self.skip_zero_epoch = skip_zero_epoch
         self.decimal_precision = decimal_precision
@@ -270,8 +257,7 @@ class PrintMetricsTableCallback(Callback):
         Returns:
             str: The state key.
         """
-        return self._generate_state_key(table_format=self.table_format,
-                                        skip_zero_epoch=self.skip_zero_epoch,
+        return self._generate_state_key(table_format=self.table_format, skip_zero_epoch=self.skip_zero_epoch,
                                         decimal_precision=self.decimal_precision)
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
@@ -287,7 +273,8 @@ class PrintMetricsTableCallback(Callback):
         self.metrics = copy.copy(trainer.callback_metrics)
         self.metrics = self.format_dict(self.metrics)
         self.separate_metrics_by_category()
-        tables = [self.metrics_to_table(self.category_metrics[category], headers=['Metric', 'Score']) for category in self.metric_categories.values()]
+        tables = [self.metrics_to_table(self.category_metrics[category], headers=['Metric', 'Score']) for category in
+                  self.metric_categories.values()]
         table = self.sidebyside_tables(tables, headers=list(self.category_metrics.keys()))
         rank_zero_info(self.format_table(table))
 
@@ -337,7 +324,7 @@ class PrintMetricsTableCallback(Callback):
         """
         return tabulate(dict.items(), headers=headers, tablefmt=self.table_format, numalign='decimal')
 
-    def sidebyside_tables(self, tables:List[str], headers: List[str]) -> str:
+    def sidebyside_tables(self, tables: List[str], headers: List[str]) -> str:
         """Combines two tables side by side.
 
         Args:
@@ -349,6 +336,7 @@ class PrintMetricsTableCallback(Callback):
         """
         table_lines = [table.splitlines() for table in tables]
         return tabulate([list(item) for item in zip(*table_lines)], headers=headers, tablefmt=self.table_format)
+
 
 # This class is necessary due to a bug in the current implementation of the SaveConfigCallback when used in conjunction with MLFlowLogger
 # Refer to: https://github.com/Lightning-AI/pytorch-lightning/issues/16310
@@ -368,7 +356,9 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
             store_artifact (bool, optional): Whether to store the configuration as an artifact in MLFlow. Defaults to True.
             log_hyperparams (bool, optional): Whether to log the configuration as hyperparameters in MLFlow. Defaults to True.
         """
-    def __init__(self, parser, config, config_filename='config.yaml', overwrite=False, multifile=False, store_artifact=True, log_hyperparams=True):
+
+    def __init__(self, parser, config, config_filename='config.yaml', overwrite=False, multifile=False,
+                 store_artifact=True, log_hyperparams=True):
         super().__init__(parser, config, config_filename, overwrite, multifile, save_to_log_dir=False)
         self.store_artifact = store_artifact
         self.log_hyperparams = log_hyperparams
@@ -407,7 +397,6 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
                 new_config[key] = value
         return new_config
 
-            Dict: The converted configuration dictionary.
     def save_config(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """Saves the configuration and logs it to MLFlow.
 
@@ -416,8 +405,6 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
              pl_module (LightningModule): The LightningModule instance.
              stage (str): The stage of the training process.
          """
-        # Convert Namespace to dict
-        config_dict = vars(self.config)
 
         if self.log_hyperparams:
             # Convert Namespace to loggable dict
@@ -430,11 +417,10 @@ class MLFlowSaveConfigCallback(SaveConfigCallback):
             if trainer.is_global_zero:
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     config_path = Path(tmp_dir) / 'config.yaml'
-                    self.parser.save(
-                        self.config, config_path, skip_none=False, overwrite=self.overwrite, multifile=self.multifile
-                    )
-                    trainer.logger.experiment.log_artifact(local_path=config_path,
-                                                           run_id=trainer.logger.run_id)
+                    self.parser.save(self.config, config_path, skip_none=False, overwrite=self.overwrite,
+                        multifile=self.multifile)
+                    trainer.logger.experiment.log_artifact(local_path=config_path, run_id=trainer.logger.run_id)
+
 
 class NotifyCallback(Callback):
     """A callback to send notifications using PushOver when training starts and ends.
@@ -446,7 +432,7 @@ class NotifyCallback(Callback):
         verbose (bool, optional): Whether to print the notification details. Defaults to True.
     """
 
-    def __init__(self, send_start: bool = True, send_end:bool = True, verbose=True) -> None:
+    def __init__(self, send_start: bool = True, send_end: bool = True, verbose=True) -> None:
         self.send_start = send_start
         self.send_end = send_end
         self.notifier = Pushover()
@@ -507,15 +493,14 @@ class NotifyCallback(Callback):
         if self.send_start:
             info = self.get_run_info(trainer)
             msg_title = 'Training Started 🚀'
-            msg_body = f'Training run {info.run_name} has started.\nStarted on: {datetime.fromtimestamp(info.start_time/1000).strftime('%a %d %b %Y, %I:%M%p')}'
+            msg_body = f'Training run {info.run_name} has started.\nStarted on: {datetime.fromtimestamp(info.start_time / 1000).strftime('%a %d %b %Y, %I:%M%p')}'
             self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
             self.notified_start = True
             if self.verbose:
                 print('Notification sent.')
-                print('Message Title: ',msg_title)
-                print('Message Body: ',msg_body)
-                print('Run URL: ',self.run_url)
-
+                print('Message Title: ', msg_title)
+                print('Message Body: ', msg_body)
+                print('Run URL: ', self.run_url)
 
     def on_exception(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", exception: BaseException) -> None:
         """Called when an exception occurs.
@@ -534,8 +519,8 @@ class NotifyCallback(Callback):
             self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
             if self.verbose:
                 print('Notification sent.')
-                print('Message Title: ',msg_title)
-                print('Message Body: ',msg_body)
+                print('Message Title: ', msg_title)
+                print('Message Body: ', msg_body)
                 print('Run URL: ', self.run_url)
 
     def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
@@ -549,7 +534,8 @@ class NotifyCallback(Callback):
         if self.send_end:
             info = self.get_run_info(trainer)
             if info.end_time is not None:
-                run_duration = datetime.fromtimestamp(info.end_time / 1000) - datetime.fromtimestamp(info.start_time / 1000)
+                run_duration = datetime.fromtimestamp(info.end_time / 1000) - datetime.fromtimestamp(
+                    info.start_time / 1000)
             else:
                 run_duration = datetime.now() - datetime.fromtimestamp(info.start_time / 1000)
             msg_title = 'Training Failed 🚨'
@@ -560,6 +546,6 @@ class NotifyCallback(Callback):
             self.notifier.notify(title=msg_title, message=msg_body, url=self.run_url, url_title='View Run')
             if self.verbose:
                 print('Notification sent.')
-                print('Message Title: ',msg_title)
-                print('Message Body: ',msg_body)
+                print('Message Title: ', msg_title)
+                print('Message Body: ', msg_body)
                 print('Run URL: ', self.run_url)
