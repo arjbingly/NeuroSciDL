@@ -14,6 +14,11 @@ fit:
         tracking_uri: http://synaptron.tail1be567.ts.net:8080
         artifact_location: /data/mlflow
     callbacks:
+      - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+        init_args:
+          logging_interval: step
+          log_momentum: true
+          log_weight_decay: true
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
           monitor: val_BinaryAccuracy
