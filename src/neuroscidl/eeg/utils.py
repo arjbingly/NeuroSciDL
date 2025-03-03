@@ -1,4 +1,7 @@
 import json
+import mne
+import numpy as np
+import pandas as pd
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -6,12 +9,8 @@ from functools import reduce
 from hashlib import sha256
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Tuple, Dict, List
-
-import mne
-import numpy as np
-import pandas as pd
 from tqdm import tqdm
+from typing import Optional, Tuple, Dict, List, Union
 
 warnings.filterwarnings("ignore", module='mne')
 
@@ -188,15 +187,15 @@ def label_type_tagger(tags: Dict[str, str], txt: str) -> Dict[str, str]:
     return tags
 ## -- ##
 
-def read_cnt(file_path: PathLike, data_format='auto', verbose=False) -> Optional[mne.io.Raw]:
+def read_cnt(file_path: PathLike, preload=True, verbose=False, **kwargs) -> Optional[mne.io.Raw]:
     """Safe reads a CNT file using MNE.
 
     Args:
         file_path (PathLike): The path to the CNT file.
-        data_format (str, optional): The data format to use.
-            Defaults to 'auto'.
+        preload (bool, optional): Whether to preload the CNT file. Defaults to True.
         verbose (bool, optional): If True, prints additional information.
             Defaults to False.
+        **kwargs: Additional arguments passed to mne.io.read_raw_cnt()
 
     Returns:
         Optional[mne.io.Raw]: The raw data object or None if an error occurs.
@@ -205,12 +204,68 @@ def read_cnt(file_path: PathLike, data_format='auto', verbose=False) -> Optional
     if not file_path.is_file():
         raise ValueError(f'Path {file_path} is not a file')
     try:
-        data = mne.io.read_raw_cnt(file_path, preload=True, data_format=data_format, verbose=verbose)
+        data = mne.io.read_raw_cnt(file_path, preload=preload, verbose=verbose, **kwargs)
     except Exception as e:
         print(f'Error reading file {file_path}: {e}')
         return None
     return data
 
+def read_fif(file_path: PathLike, preload=True, verbose=False, **kwargs) -> Optional[mne.io.Raw]:
+    """Safe reads a FIF file using MNE.
+
+    Args:
+        file_path (PathLike): The path to the FIF file.
+        preload (bool, optional): Whether to preload the FIF file. Defaults to True.
+        verbose (bool, optional): If True, prints additional information.
+            Defaults to False.
+        **kwargs: Additional arguments passed to mne.io.read_raw_fif()
+
+    Returns:
+        Optional[mne.io.Raw]: The raw data object or None if an error occurs.
+    """
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise ValueError(f'Path {file_path} is not a file')
+    try:
+        data = mne.io.read_raw_fif(file_path, preload=preload, verbose=verbose, **kwargs)
+    except Exception as e:
+        print(f'Error reading file {file_path}: {e}')
+        return None
+    return data
+
+def read_eeg(file_path: PathLike, preload=True, verbose:Union[bool, str, int, None]=False, **kwargs):
+    """Reads an EEG file in .fif or .cnt format using MNE.
+
+    Args:
+        file_path (PathLike): The path to the EEG file.
+        preload (bool, optional): Whether to preload the file. Defaults to True.
+        verbose (bool, str, int, optional): Control verbosity of the logging output.
+            If None, use the default verbosity level of MNE.
+            Defaults to False
+        **kwargs: Additional arguments passed to the MNE read functions.
+
+    Returns:
+        mne.io.Raw: The raw data object if successful, None otherwise.
+
+    Raises:
+        ValueError: If the file path is not a file or the file type is unsupported.
+    """
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise ValueError(f'Path {file_path} is not a file')
+    try:
+        file_type = file_path.suffix
+        match file_type:
+            case '.fif':
+                data = mne.io.read_raw_fif(file_path, preload=preload, verbose=verbose, **kwargs)
+            case '.cnt':
+                data = mne.io.read_raw_cnt(file_path, preload=preload, verbose=verbose, **kwargs)
+            case _:
+                raise ValueError(f'Unsupported file type: {file_type}. Supported file types are .fif and .cnt')
+    except Exception as e:
+        print(f'Error reading file {file_path}: {e}')
+        return None
+    return data
 
 class CalculateEEGDist:
     """Class to calculate the mean and standard deviation of EEG data."""
@@ -218,7 +273,6 @@ class CalculateEEGDist:
                  data_dir: PathLike,
                  save_file: Optional[PathLike] = 'noise_config.json',
                  overwrite: bool = False,
-                 reader_func: callable = read_cnt,
                  verbose: bool = True):
         """
         Args:
@@ -227,8 +281,6 @@ class CalculateEEGDist:
                 Defaults to 'noise_config.json'.
             overwrite (bool, optional): If True, overwrites existing results.
                 Defaults to False.
-            reader_func (callable, optional): The function to read the data files.
-                Defaults to read_cnt.
             verbose (bool, optional): If True, prints additional information.
                 Defaults to True.
        """
@@ -237,7 +289,7 @@ class CalculateEEGDist:
         self.overwrite = overwrite
         if save_file is not None:
             self.save_file = Path(save_file)
-        self.reader_func = reader_func
+        self.reader_func = staticmethod(read_eeg)
 
     @staticmethod
     def get_sample_mean(data: mne.io.Raw) -> Optional[float]:

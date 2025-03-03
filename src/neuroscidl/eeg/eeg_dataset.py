@@ -1,13 +1,13 @@
-from pathlib import Path
-from typing import Union
-
-import mne
 import numpy as np
 import pandas as pd
 import torch
 from lightning import LightningDataModule
-from neuroscidl.eeg.annotator import CNTSampleAnnotator
+from neuroscidl.eeg.annotator import EEGSampleAnnotator
+from neuroscidl.eeg.utils import read_eeg
+from os import PathLike
+from pathlib import Path
 from torch.utils.data import DataLoader, Dataset
+from typing import Union
 
 
 class EEGSampleDataset(Dataset):
@@ -30,12 +30,8 @@ class EEGSampleDataset(Dataset):
         return len(self.annotations_df)
 
     @classmethod
-    def read_cnt(cls, file_path: Union[str, Path], data_format='auto', verbose=False):
-        file_path = Path(file_path)
-        if not file_path.is_file():
-            raise ValueError(f'Path {file_path} is not a file')
-        data = mne.io.read_raw_cnt(file_path, data_format=data_format, verbose=verbose)
-        return data
+    def read_eeg(self, file_path: PathLike, preload=True, verbose:Union[bool, str, int, None]=False, **kwargs):
+        return read_eeg(file_path, preload=preload, verbose=verbose, **kwargs)
 
     @staticmethod
     def pad_channels(data, pad_channels:int):
@@ -59,7 +55,7 @@ class EEGSampleDataset(Dataset):
         label = self.annotations_df.iloc[idx][self.label_col].astype(np.float32)
         start_idx = self.annotations_df.iloc[idx]['start_idx']
         stop_idx = self.annotations_df.iloc[idx]['stop_idx']
-        raw = self.read_cnt(file_path)
+        raw = self.read_eeg(file_path)
         data = raw.get_data(start=start_idx, stop=stop_idx)
         if self.annotations_df.iloc[idx]['n_channels'] == 32:
             data = self.pad_channels(data, 32)
@@ -123,7 +119,7 @@ class EEGDataModule(LightningDataModule):
         self._validate_annotations()
 
     def _annotate_samples(self):
-        self.annotator = CNTSampleAnnotator(self.annotation_file,
+        self.annotator = EEGSampleAnnotator(self.annotation_file,
                                             *self.window_config,
                                             save_path=self.annotation_dir,
                                             save_suffix='sample_annotations',

@@ -10,7 +10,7 @@ from neuroscidl.eeg.utils import hash_df
 
 warnings.filterwarnings("ignore", module='mne')
 
-class CNTSampleAnnotator:
+class EEGSampleAnnotator:
     """
     A class to annotate windowed EEG samples, given a dataframe with column 'n_times'
     corresponding to the total number of datapoints.
@@ -38,7 +38,7 @@ class CNTSampleAnnotator:
                  save_suffix: str = 'sample_annotations',
                  overwrite: bool = False,):
         """
-        Initializes the CNTSampleAnnotator with the given parameters.
+        Initializes the EEGSampleAnnotator with the given parameters.
 
         Args:
             file_annotations (Union[pd.DataFrame, PathLike]): The path to the CSV file containing the file annotations

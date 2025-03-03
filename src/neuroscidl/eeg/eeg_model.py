@@ -1,12 +1,11 @@
-import logging
-from typing import List, Optional, Union
-
 import lightning as L
+import logging
 import numpy as np
 import torch
 import torch.nn as nn
 import torchmetrics as tm
 import transformers
+from typing import List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
