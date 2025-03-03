@@ -23,6 +23,7 @@ class MyLightningCli(LightningCLI):
         """
         parser.add_argument('--model_prefix', type=str, default='EEGViT')
         parser.add_argument('--dev_run', action='store_true', help='Run a development run')
+        parser.add_argument('--tags', type=dict, default=None, help='Tags for MLFlow logger')
         # parser.link_arguments('data.annotation_file', 'data.train_transform.init_args.config_key')
 
     def dev_run(self):
@@ -48,8 +49,11 @@ class MyLightningCli(LightningCLI):
     def update_mlflow_tags(self):
         """Update the MLFlow logger tags."""
         print('Updating MLFlow logger tags...')
-        self.config['fit']['trainer']['logger']['init_args']['tags'] = filename_tagger(
-            Path(self.config['fit']['data']['annotation_file']).name)
+        tags = {}
+        if self.config['fit']['tags'] is not None:
+            tags.update(self.config['fit']['tags'])
+        tags.update(filename_tagger(Path(self.config['fit']['data']['annotation_file']).name))
+        self.config['fit']['trainer']['logger']['init_args']['tags'] = tags
         print(
             f"{Path(self.config['fit']['data']['annotation_file']).name}:{self.config['fit']['trainer']['logger']['init_args']['tags']}")
 
