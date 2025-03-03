@@ -3,14 +3,13 @@
 Example:
     python ViT2EEG_train_cli.py -c config.yaml fit --dev_run --data.annotation_file file_annotations.csv
 """
-from pathlib import Path
-
 import torch
 from lightning.pytorch.cli import LightningCLI, LightningArgumentParser
 from neuroscidl.callbacks import MLFlowSaveConfigCallback
 from neuroscidl.eeg.eeg_dataset import EEGDataModule
 from neuroscidl.eeg.eeg_model import EEGViT_pretrained
 from neuroscidl.eeg.utils import filename_tagger, CalculateEEGDist
+from pathlib import Path
 
 
 class MyLightningCli(LightningCLI):
@@ -94,10 +93,20 @@ class MyLightningCli(LightningCLI):
         print('Checking noise config...')
         for noise_config_key in noise_config_keys:
             calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
-            calculator(noise_config_key)
+            calculator(Path(self.config['fit']['data']['annotation_dir'])/noise_config_key)
+
+    def auto_annotation_dir(self):
+        """Auto set annotation_dir if set to 'auto'."""
+        if self.config['fit']['data'].get('annotation_dir') == 'auto':
+            self.config['fit']['data']['annotation_dir'] = Path(self.config['fit']['data']['data_dir'])/'annotations'
+        else:
+            print('Using given annotation_dir')
 
     def before_instantiate_classes(self) -> None:
         """Modify the configuration before instantiating classes."""
+        # Auto annotation_dir
+        self.auto_annotation_dir()
+
         # Define dev_run
         if self.config['fit'].get('dev_run'):
             self.dev_run()
