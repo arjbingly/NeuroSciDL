@@ -56,44 +56,93 @@ class MyLightningCli(LightningCLI):
         print(
             f"{Path(self.config['fit']['data']['annotation_file']).name}:{self.config['fit']['trainer']['logger']['init_args']['tags']}")
 
-    def modify_transform_config(self, transform_config, modify=True):
-        """Modify the transform config to use the same config_key as the annotation_file."""
-        if transform_config.get('init_args') is not None:
-            if transform_config['init_args'].get('config_key') is not None:
-                if transform_config['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
-                    if modify:
-                        print(
-                            f'Warning: {transform_config['class_path']} config_key is not the same as annotation_file, will be updated.')
-                        transform_config['init_args']['config_key'] = self.config['fit']['data']['annotation_file']
+    def auto_transform_config(self, transform_index, transform_type='train'):
+        """Auto set config_key and config_path for transforms."""
+        if transform_index is None:
+            if self.config['fit']['data'][f'{transform_type}_transform'].get('init_args') is not None:
+                if self.config['fit']['data'][f'{transform_type}_transform']['init_args'].get('config_key') is not None:
+                    if self.config['fit']['data'][f'{transform_type}_transform']['init_args']['config_key'] == 'auto':
+                        print(f'Auto setting {transform_type}_transform config_key to {self.config['fit']['data']['annotation_file']}.')
+                        self.config['fit']['data'][f'{transform_type}_transform']['init_args'][
+                            'config_key'] = self.config['fit']['data']['annotation_file']
                     else:
-                        print(
-                            f'Warning: {transform_config['class_path']} config_key is not the same as annotation_file.')
+                        if self.config['fit']['data'][f'{transform_type}_transform']['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
+                            print(f'Warning: {transform_type}_transform config_key is not same as annotation_file.'
+                                  f' It is recommended to set this to "auto".')
+                if self.config['fit']['data'][f'{transform_type}_transform']['init_args'].get(
+                    'config_path') is not None:
+                    if self.config['fit']['data'][f'{transform_type}_transform']['init_args'][
+                        'config_path'] == 'auto':
+                        print(f'Auto setting {transform_type}_transform config_path to '
+                              f'{self.config['fit']['data']['data_dir']}/noise_config.json')
+                        self.config['fit']['data'][f'{transform_type}_transform']['init_args'][
+                            'config_path'] = f"{self.config['fit']['data']['data_dir']}/noise_config.json"
+                    else:
+                        if self.config['fit']['data'][f'{transform_type}_transform']['init_args']['config_path'] != f"{self.config['fit']['data']['data_dir']}/noise_config.json'":
+                            print(f'Warning: {transform_type}_transform config_path is not '
+                                  f'{self.config['fit']['data']['data_dir']}/noise_config.json. '
+                                  f'It is recommended to set this to "auto".')
 
-    def verify_transform_config_key(self, modify=True):
-        """Validate train_transform config_key is same as annotation_file."""
+        if self.config['fit']['data'][f'{transform_type}_transform'][transform_index].get('init_args') is not None:
+            if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'].get('config_key') is not None:
+                if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args']['config_key'] == 'auto':
+                    print(f'Auto setting {transform_type}_transform[{transform_index}] config_key to '
+                          f'{self.config['fit']['data']['annotation_file']}.')
+                    self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'][
+                        'config_key'] = self.config['fit']['data']['annotation_file']
+                else:
+                    if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args']['config_key'] != self.config['fit']['data']['annotation_file']:
+                        print(f'Warning: {transform_type}_transform[{transform_index}] config_key is not same as '
+                              f'annotation_file. It is recommended to set this to "auto".')
+
+            if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'].get(
+                'config_path') is not None:
+                if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'][
+                    'config_path'] == 'auto':
+                    print(f'Auto setting {transform_type}_transform[{transform_index}] config_path to '
+                          f'{self.config['fit']['data']['data_dir']}/noise_config.json')
+                    self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'][
+                        'config_path'] = f"{self.config['fit']['data']['data_dir']}/noise_config.json"
+                else:
+                    if self.config['fit']['data'][f'{transform_type}_transform'][transform_index]['init_args'][
+                        'config_path'] != self.config['fit']['data']['annotation_file']:
+                        print(f'Warning: {transform_type}_transform[{transform_index}] config_path is not '
+                              f'{self.config['fit']['data']['data_dir']}/noise_config.json. '
+                              f'It is recommended to set this to "auto".')
+
+    def verify_transform_config_params(self):
+        """Validate train_transform config_key and config_path."""
         if isinstance(self.config['fit']['data']['train_transform'], list):
-            for transform in self.config['fit']['data']['train_transform']:
-                self.modify_transform_config(transform, modify)
+            for transform_index, transform in enumerate(self.config['fit']['data']['train_transform']):
+                self.auto_transform_config(transform_index, 'train')
         else:
-            self.modify_transform_config(self.config['fit']['data']['train_transform'], modify)
+            self.auto_transform_config(None, 'train')
 
-    def find_noise_config(self):
+    def validate_transform_config_file(self):
         """Checks if config for file exists in noise_config.json else create."""
-        noise_config_keys = []
+        transform_configs = []
         if isinstance(self.config['fit']['data']['train_transform'], list):
             for transform in self.config['fit']['data']['train_transform']:
+                t_config = {}
                 if transform.get('init_args') is not None:
                     if transform['init_args'].get('config_key') is not None:
-                        noise_config_keys.append(transform['init_args']['config_key'])
+                        t_config['config_key'] = transform['init_args']['config_key']
+                        if transform['init_args'].get('config_path') is not None:
+                            t_config['config_path'] = transform['init_args']['config_path']
+                            transform_configs.append(t_config)
         else:
             if self.config['fit']['data']['train_transform'].get('init_args') is not None:
+                t_config = {}
                 if self.config['fit']['data']['train_transform']['init_args'].get('config_key') is not None:
-                    noise_config_keys.append(self.config['fit']['data']['train_transform']['init_args']['config_key'])
+                    t_config['config_key'] = self.config['fit']['data']['train_transform']['init_args']['config_key']
+                    if self.config['fit']['data']['train_transform']['init_args'].get('config_path') is not None:
+                        t_config['config_path'] = self.config['fit']['data']['train_transform']['init_args']['config_path']
+                        transform_configs.append(t_config)
 
         print('Checking noise config...')
-        for noise_config_key in noise_config_keys:
+        for t_config in transform_configs:
             calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
-            calculator(Path(self.config['fit']['data']['annotation_dir'])/noise_config_key)
+            calculator(Path(t_config['config_path'])/t_config['config_key'])
 
     def auto_annotation_dir(self):
         """Auto set annotation_dir if set to 'auto'."""
@@ -122,9 +171,9 @@ class MyLightningCli(LightningCLI):
         # Transforms config
         if self.config['fit']['data'].get('train_transform') is not None:
             # Validate train_transform config_key is same as annotation_file
-            self.verify_transform_config_key(modify=True)
+            self.verify_transform_config_params()
             # Checks if config for file exists in noise_config.json else create
-            self.find_noise_config()
+            self.validate_transform_config_file()
 
 def cli_main():
     """Main function to run the CLI."""

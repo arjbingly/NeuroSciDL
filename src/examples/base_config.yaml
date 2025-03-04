@@ -175,19 +175,19 @@ fit:
     lr: 0.001
   data:
     data_dir: /data/eec
-    annotation_dir: auto
+    annotation_dir: auto # ${fit.data.data_dir}/annotations # auto is recommended
     annotation_file: file_annotations_bal_v2.csv
     batch_size: 128
     train_transform:
       - class_path: neuroscidl.eeg.transforms.GaussianNoiseTransform
         init_args:
-          config_path: ${fit.data.data_dir}/noise_config.json # Do not change, does not play well with utils.CalculateEEGDist
-          config_key: ${fit.data.annotation_file}
+          config_path: auto # ${fit.data.data_dir}/noise_config.json # auto is recommended
+          config_key: auto # ${fit.data.annotation_file} # auto is recommended
           clip: false
-      - class_path: neuroscidl.eeg.transforms.ZTransform
-        init_args:
-          config_path: ${fit.data.data_dir}/noise_config.json
-          config_key: ${fit.data.annotation_file}
+#      - class_path: neuroscidl.eeg.transforms.ZTransform
+#        init_args:
+#          config_path: auto
+#          config_key: auto
     val_transform: null
     target_transform: null
     window_config:
