@@ -147,12 +147,12 @@ class EEGDataModule(LightningDataModule):
         return DataLoader(
             EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform, return_info='id', label_col=self.label_col),
             batch_size=self.batch_size,
-            num_workers=0,
+            num_workers=2,
             shuffle=False)
 
     def test_dataloader(self):
         return DataLoader(
             EEGSampleDataset(self.data_dir, self.test_annotations, transform=self.val_transform,return_info='id', label_col=self.label_col),
             batch_size=self.batch_size,
-            num_workers=0,
+            num_workers=2,
             shuffle=False)
