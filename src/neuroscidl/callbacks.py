@@ -4,6 +4,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Mapping
+from urllib.parse import urlparse
 
 import lightning.pytorch as pl
 import torch
@@ -549,3 +550,31 @@ class NotifyCallback(Callback):
                 print('Message Title: ', msg_title)
                 print('Message Body: ', msg_body)
                 print('Run URL: ', self.run_url)
+
+class PatchLogDirCallback(Callback):
+    """Patches the log_dir property of the trainer to point to the MLFlow artifact directory.
+    This is needed for the proper functioning of finetuning_scheduler
+    """
+    def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage=None):
+        logger = trainer.logger
+
+        if logger.__class__.__name__ == "MLFlowLogger":
+            uri = logger.experiment.get_run(logger.run_id).info.artifact_uri
+            parsed = urlparse(uri)
+
+            if parsed.scheme == "file":
+                artifact_path = os.path.abspath(
+                    os.path.join(parsed.netloc, parsed.path)
+                )
+
+                # Patch the Trainer object to override the log_dir property
+                trainer._log_dir = artifact_path
+
+                def patched_log_dir(self):
+                    return self._log_dir
+
+                trainer.__class__.log_dir = property(patched_log_dir)
+
+                print(f"Patched trainer.log_dir to {artifact_path}")
+            else:
+                print(f"Warning: MLFlow artifact_uri is remote, finetuning-scheduler can not use: {uri}")

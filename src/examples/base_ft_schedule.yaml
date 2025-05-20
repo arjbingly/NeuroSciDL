@@ -1,0 +1,62 @@
+0:
+  params:
+  - model.ViT.vit.embeddings.patch_embeddings.*
+  - model.conv1.*
+  - model.batchnorm1.*
+  max_transition_epoch: 2
+
+1:
+  params:
+  - model.ViT.classifier.*
+  - model.ViT.vit.embeddings.position_embeddings.*
+  new_optimizer:
+    optimizer_init:
+      class_path: torch.optim.AdamW
+      init_args:
+        lr: 1.0e-04
+        weight_decay: 1.0e-04
+  new_lr_scheduler:
+    lr_scheduler_init:
+      class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+      init_args:
+        T_max: 5
+        eta_min: 1.0e-6
+2:
+  params:
+  - model.ViT.vit.layernorm.*
+  - model.ViT.vit.encoder.layer.11.*
+  - model.ViT.vit.encoder.layer.10.*
+  - model.ViT.vit.encoder.layer.9.*
+  new_optimizer:
+    optimizer_init:
+      class_path: torch.optim.AdamW
+      init_args:
+        lr: 1.0e-05
+        weight_decay: 1.0e-04
+  new_lr_scheduler:
+    lr_scheduler_init:
+      class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+      init_args:
+        T_max: 5
+        eta_min: 1.0e-6
+3:
+  params:
+  - model.ViT.vit.encoder.layer.8.*
+  - model.ViT.vit.encoder.layer.7.*
+  - model.ViT.vit.encoder.layer.6.*
+4:
+  params:
+  - model.ViT.vit.encoder.layer.5.*
+  - model.ViT.vit.encoder.layer.4.*
+  - model.ViT.vit.encoder.layer.3.*
+  - model.ViT.vit.encoder.layer.2.*
+  - model.ViT.vit.encoder.layer.1.attention.*
+  - model.ViT.vit.encoder.layer.1.intermediate.*
+  - model.ViT.vit.encoder.layer.1.output.*
+  - model.ViT.vit.encoder.layer.1.layernorm_before.*
+  - model.ViT.vit.encoder.layer.1.layernorm_after.*
+  - model.ViT.vit.encoder.layer.0.attention.*
+  - model.ViT.vit.encoder.layer.0.intermediate.*
+  - model.ViT.vit.encoder.layer.0.output.*
+  - model.ViT.vit.encoder.layer.0.layernorm_before.*
+  - model.ViT.vit.encoder.layer.0.layernorm_after.*

@@ -3,13 +3,15 @@
 Example:
     python ViT2EEG_train_cli.py -c config.yaml fit --dev_run --data.annotation_file file_annotations.csv
 """
+from pathlib import Path
+
 import torch
-from lightning.pytorch.cli import LightningCLI, LightningArgumentParser
+from lightning.pytorch.cli import LightningArgumentParser, LightningCLI
+
 from neuroscidl.callbacks import MLFlowSaveConfigCallback
 from neuroscidl.eeg.eeg_dataset import EEGDataModule
 from neuroscidl.eeg.eeg_model import EEGViT_pretrained
-from neuroscidl.eeg.utils import filename_tagger, CalculateEEGDist
-from pathlib import Path
+from neuroscidl.eeg.utils import CalculateEEGDist, filename_tagger
 
 
 class MyLightningCli(LightningCLI):
@@ -142,7 +144,7 @@ class MyLightningCli(LightningCLI):
         print('Checking noise config...')
         for t_config in transform_configs:
             calculator = CalculateEEGDist(self.config['fit']['data']['data_dir'])
-            calculator(Path(t_config['config_path'])/t_config['config_key'])
+            calculator(f"annotations/{t_config['config_key']}")
 
     def auto_annotation_dir(self):
         """Auto set annotation_dir if set to 'auto'."""
@@ -175,10 +177,29 @@ class MyLightningCli(LightningCLI):
             # Checks if config for file exists in noise_config.json else create
             self.validate_transform_config_file()
 
+    # def before_fit(self) -> None:
+    #     logger = self.trainer.logger
+    #
+    #     # Check if logger is MLFlowLogger
+    #     if logger.__class__.__name__ == "MLFlowLogger":
+    #         uri = logger.experiment.get_run(logger.run_id).info.artifact_uri
+    #         parsed_uri = urlparse(uri)
+    #
+    #         if parsed_uri.scheme == "file":
+    #             artifact_path = os.path.abspath(
+    #                 os.path.join(parsed_uri.netloc, parsed_uri.path)
+    #             )
+    #             self.trainer.logger.save_dir = artifact_path
+    #         else:
+    #             # fallback or warning for non-local URIs (e.g. S3)
+    #             print(f"Warning: MLFlow artifact_uri is remote, finetuning-scheduler can not use: {uri}")
+    #             self.trainer.logger.save_dir = "./mlruns"  # safe default
+
+
 def cli_main():
     """Main function to run the CLI."""
     torch.set_float32_matmul_precision('high')
-    cli = MyLightningCli(EEGViT_pretrained,
+    MyLightningCli(EEGViT_pretrained,
                          EEGDataModule,
                          save_config_callback=MLFlowSaveConfigCallback,
                          parser_kwargs={"parser_mode": "omegaconf"})

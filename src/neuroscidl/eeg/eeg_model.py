@@ -210,10 +210,36 @@ class EEGViT_pretrained(L.LightningModule):
         self.metrics.reset()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,},
         }
+
+class EEGViT_finetuning_callback(BaseFinetuning):
+    def __init__(self, unfreeze_at_epoch=10):
+        super().__init__()
+        self.unfreeze_at_epoch = unfreeze_at_epoch
+
+    def freeze_before_training(self, pl_module):
+        self.freeze(pl_module.model.ViT.vit)
+        # Unfreeze input patch embedding projection (input conv layer)
+        for param in pl_module.model.ViT.vit.embeddings.patch_embeddings.projection.parameters():
+            param.requires_grad = True
+
+        # Unfreeze full patch embedding block (for patch size changes)
+        for param in pl_module.model.ViT.vit.embeddings.patch_embeddings.parameters():
+            param.requires_grad = True
+
+        # Unfreeze positional embeddings
+        pl_module.model.ViT.vit.embeddings.position_embeddings.requires_grad = True
+
+    def finetune_function(self, pl_module, current_epoch, optimizer):
+        if current_epoch == self.unfreeze_at_epoch:
+            self.unfreeze_and_add_param_group(
+                modules=pl_module.model.ViT.vit,
+                optimizer=optimizer,
+                train_bn=True,
+            )

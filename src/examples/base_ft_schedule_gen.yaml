@@ -1,0 +1,412 @@
+# Auto Generated
+0:
+  params:
+  - model.ViT.classifier.2.bias
+  - model.ViT.classifier.2.weight
+1:
+  params:
+  - model.ViT.classifier.0.bias
+  - model.ViT.classifier.0.weight
+2:
+  params:
+  - model.ViT.vit.layernorm.bias
+  - model.ViT.vit.layernorm.weight
+3:
+  params:
+  - model.ViT.vit.encoder.layer.11.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.11.layernorm_after.weight
+4:
+  params:
+  - model.ViT.vit.encoder.layer.11.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.11.layernorm_before.weight
+5:
+  params:
+  - model.ViT.vit.encoder.layer.11.output.dense.bias
+  - model.ViT.vit.encoder.layer.11.output.dense.weight
+6:
+  params:
+  - model.ViT.vit.encoder.layer.11.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.11.intermediate.dense.weight
+7:
+  params:
+  - model.ViT.vit.encoder.layer.11.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.11.attention.output.dense.weight
+8:
+  params:
+  - model.ViT.vit.encoder.layer.11.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.11.attention.attention.value.weight
+9:
+  params:
+  - model.ViT.vit.encoder.layer.11.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.11.attention.attention.key.weight
+10:
+  params:
+  - model.ViT.vit.encoder.layer.11.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.11.attention.attention.query.weight
+11:
+  params:
+  - model.ViT.vit.encoder.layer.10.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.10.layernorm_after.weight
+12:
+  params:
+  - model.ViT.vit.encoder.layer.10.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.10.layernorm_before.weight
+13:
+  params:
+  - model.ViT.vit.encoder.layer.10.output.dense.bias
+  - model.ViT.vit.encoder.layer.10.output.dense.weight
+14:
+  params:
+  - model.ViT.vit.encoder.layer.10.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.10.intermediate.dense.weight
+15:
+  params:
+  - model.ViT.vit.encoder.layer.10.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.10.attention.output.dense.weight
+16:
+  params:
+  - model.ViT.vit.encoder.layer.10.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.10.attention.attention.value.weight
+17:
+  params:
+  - model.ViT.vit.encoder.layer.10.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.10.attention.attention.key.weight
+18:
+  params:
+  - model.ViT.vit.encoder.layer.10.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.10.attention.attention.query.weight
+19:
+  params:
+  - model.ViT.vit.encoder.layer.9.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.9.layernorm_after.weight
+20:
+  params:
+  - model.ViT.vit.encoder.layer.9.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.9.layernorm_before.weight
+21:
+  params:
+  - model.ViT.vit.encoder.layer.9.output.dense.bias
+  - model.ViT.vit.encoder.layer.9.output.dense.weight
+22:
+  params:
+  - model.ViT.vit.encoder.layer.9.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.9.intermediate.dense.weight
+23:
+  params:
+  - model.ViT.vit.encoder.layer.9.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.9.attention.output.dense.weight
+24:
+  params:
+  - model.ViT.vit.encoder.layer.9.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.9.attention.attention.value.weight
+25:
+  params:
+  - model.ViT.vit.encoder.layer.9.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.9.attention.attention.key.weight
+26:
+  params:
+  - model.ViT.vit.encoder.layer.9.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.9.attention.attention.query.weight
+27:
+  params:
+  - model.ViT.vit.encoder.layer.8.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.8.layernorm_after.weight
+28:
+  params:
+  - model.ViT.vit.encoder.layer.8.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.8.layernorm_before.weight
+29:
+  params:
+  - model.ViT.vit.encoder.layer.8.output.dense.bias
+  - model.ViT.vit.encoder.layer.8.output.dense.weight
+30:
+  params:
+  - model.ViT.vit.encoder.layer.8.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.8.intermediate.dense.weight
+31:
+  params:
+  - model.ViT.vit.encoder.layer.8.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.8.attention.output.dense.weight
+32:
+  params:
+  - model.ViT.vit.encoder.layer.8.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.8.attention.attention.value.weight
+33:
+  params:
+  - model.ViT.vit.encoder.layer.8.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.8.attention.attention.key.weight
+34:
+  params:
+  - model.ViT.vit.encoder.layer.8.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.8.attention.attention.query.weight
+35:
+  params:
+  - model.ViT.vit.encoder.layer.7.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.7.layernorm_after.weight
+36:
+  params:
+  - model.ViT.vit.encoder.layer.7.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.7.layernorm_before.weight
+37:
+  params:
+  - model.ViT.vit.encoder.layer.7.output.dense.bias
+  - model.ViT.vit.encoder.layer.7.output.dense.weight
+38:
+  params:
+  - model.ViT.vit.encoder.layer.7.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.7.intermediate.dense.weight
+39:
+  params:
+  - model.ViT.vit.encoder.layer.7.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.7.attention.output.dense.weight
+40:
+  params:
+  - model.ViT.vit.encoder.layer.7.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.7.attention.attention.value.weight
+41:
+  params:
+  - model.ViT.vit.encoder.layer.7.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.7.attention.attention.key.weight
+42:
+  params:
+  - model.ViT.vit.encoder.layer.7.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.7.attention.attention.query.weight
+43:
+  params:
+  - model.ViT.vit.encoder.layer.6.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.6.layernorm_after.weight
+44:
+  params:
+  - model.ViT.vit.encoder.layer.6.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.6.layernorm_before.weight
+45:
+  params:
+  - model.ViT.vit.encoder.layer.6.output.dense.bias
+  - model.ViT.vit.encoder.layer.6.output.dense.weight
+46:
+  params:
+  - model.ViT.vit.encoder.layer.6.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.6.intermediate.dense.weight
+47:
+  params:
+  - model.ViT.vit.encoder.layer.6.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.6.attention.output.dense.weight
+48:
+  params:
+  - model.ViT.vit.encoder.layer.6.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.6.attention.attention.value.weight
+49:
+  params:
+  - model.ViT.vit.encoder.layer.6.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.6.attention.attention.key.weight
+50:
+  params:
+  - model.ViT.vit.encoder.layer.6.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.6.attention.attention.query.weight
+51:
+  params:
+  - model.ViT.vit.encoder.layer.5.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.5.layernorm_after.weight
+52:
+  params:
+  - model.ViT.vit.encoder.layer.5.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.5.layernorm_before.weight
+53:
+  params:
+  - model.ViT.vit.encoder.layer.5.output.dense.bias
+  - model.ViT.vit.encoder.layer.5.output.dense.weight
+54:
+  params:
+  - model.ViT.vit.encoder.layer.5.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.5.intermediate.dense.weight
+55:
+  params:
+  - model.ViT.vit.encoder.layer.5.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.5.attention.output.dense.weight
+56:
+  params:
+  - model.ViT.vit.encoder.layer.5.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.5.attention.attention.value.weight
+57:
+  params:
+  - model.ViT.vit.encoder.layer.5.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.5.attention.attention.key.weight
+58:
+  params:
+  - model.ViT.vit.encoder.layer.5.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.5.attention.attention.query.weight
+59:
+  params:
+  - model.ViT.vit.encoder.layer.4.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.4.layernorm_after.weight
+60:
+  params:
+  - model.ViT.vit.encoder.layer.4.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.4.layernorm_before.weight
+61:
+  params:
+  - model.ViT.vit.encoder.layer.4.output.dense.bias
+  - model.ViT.vit.encoder.layer.4.output.dense.weight
+62:
+  params:
+  - model.ViT.vit.encoder.layer.4.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.4.intermediate.dense.weight
+63:
+  params:
+  - model.ViT.vit.encoder.layer.4.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.4.attention.output.dense.weight
+64:
+  params:
+  - model.ViT.vit.encoder.layer.4.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.4.attention.attention.value.weight
+65:
+  params:
+  - model.ViT.vit.encoder.layer.4.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.4.attention.attention.key.weight
+66:
+  params:
+  - model.ViT.vit.encoder.layer.4.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.4.attention.attention.query.weight
+67:
+  params:
+  - model.ViT.vit.encoder.layer.3.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.3.layernorm_after.weight
+68:
+  params:
+  - model.ViT.vit.encoder.layer.3.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.3.layernorm_before.weight
+69:
+  params:
+  - model.ViT.vit.encoder.layer.3.output.dense.bias
+  - model.ViT.vit.encoder.layer.3.output.dense.weight
+70:
+  params:
+  - model.ViT.vit.encoder.layer.3.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.3.intermediate.dense.weight
+71:
+  params:
+  - model.ViT.vit.encoder.layer.3.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.3.attention.output.dense.weight
+72:
+  params:
+  - model.ViT.vit.encoder.layer.3.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.3.attention.attention.value.weight
+73:
+  params:
+  - model.ViT.vit.encoder.layer.3.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.3.attention.attention.key.weight
+74:
+  params:
+  - model.ViT.vit.encoder.layer.3.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.3.attention.attention.query.weight
+75:
+  params:
+  - model.ViT.vit.encoder.layer.2.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.2.layernorm_after.weight
+76:
+  params:
+  - model.ViT.vit.encoder.layer.2.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.2.layernorm_before.weight
+77:
+  params:
+  - model.ViT.vit.encoder.layer.2.output.dense.bias
+  - model.ViT.vit.encoder.layer.2.output.dense.weight
+78:
+  params:
+  - model.ViT.vit.encoder.layer.2.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.2.intermediate.dense.weight
+79:
+  params:
+  - model.ViT.vit.encoder.layer.2.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.2.attention.output.dense.weight
+80:
+  params:
+  - model.ViT.vit.encoder.layer.2.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.2.attention.attention.value.weight
+81:
+  params:
+  - model.ViT.vit.encoder.layer.2.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.2.attention.attention.key.weight
+82:
+  params:
+  - model.ViT.vit.encoder.layer.2.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.2.attention.attention.query.weight
+83:
+  params:
+  - model.ViT.vit.encoder.layer.1.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.1.layernorm_after.weight
+84:
+  params:
+  - model.ViT.vit.encoder.layer.1.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.1.layernorm_before.weight
+85:
+  params:
+  - model.ViT.vit.encoder.layer.1.output.dense.bias
+  - model.ViT.vit.encoder.layer.1.output.dense.weight
+86:
+  params:
+  - model.ViT.vit.encoder.layer.1.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.1.intermediate.dense.weight
+87:
+  params:
+  - model.ViT.vit.encoder.layer.1.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.1.attention.output.dense.weight
+88:
+  params:
+  - model.ViT.vit.encoder.layer.1.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.1.attention.attention.value.weight
+89:
+  params:
+  - model.ViT.vit.encoder.layer.1.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.1.attention.attention.key.weight
+90:
+  params:
+  - model.ViT.vit.encoder.layer.1.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.1.attention.attention.query.weight
+91:
+  params:
+  - model.ViT.vit.encoder.layer.0.layernorm_after.bias
+  - model.ViT.vit.encoder.layer.0.layernorm_after.weight
+92:
+  params:
+  - model.ViT.vit.encoder.layer.0.layernorm_before.bias
+  - model.ViT.vit.encoder.layer.0.layernorm_before.weight
+93:
+  params:
+  - model.ViT.vit.encoder.layer.0.output.dense.bias
+  - model.ViT.vit.encoder.layer.0.output.dense.weight
+94:
+  params:
+  - model.ViT.vit.encoder.layer.0.intermediate.dense.bias
+  - model.ViT.vit.encoder.layer.0.intermediate.dense.weight
+95:
+  params:
+  - model.ViT.vit.encoder.layer.0.attention.output.dense.bias
+  - model.ViT.vit.encoder.layer.0.attention.output.dense.weight
+96:
+  params:
+  - model.ViT.vit.encoder.layer.0.attention.attention.value.bias
+  - model.ViT.vit.encoder.layer.0.attention.attention.value.weight
+97:
+  params:
+  - model.ViT.vit.encoder.layer.0.attention.attention.key.bias
+  - model.ViT.vit.encoder.layer.0.attention.attention.key.weight
+98:
+  params:
+  - model.ViT.vit.encoder.layer.0.attention.attention.query.bias
+  - model.ViT.vit.encoder.layer.0.attention.attention.query.weight
+99:
+  params:
+  - model.ViT.vit.embeddings.patch_embeddings.projection.bias
+  - model.ViT.vit.embeddings.patch_embeddings.projection.weight
+100:
+  params:
+  - model.ViT.vit.embeddings.position_embeddings
+  - model.ViT.vit.embeddings.cls_token
+101:
+  params:
+  - model.batchnorm1.bias
+  - model.batchnorm1.weight
+102:
+  params:
+  - model.conv1.weight
