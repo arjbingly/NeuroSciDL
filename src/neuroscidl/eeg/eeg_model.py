@@ -1,11 +1,13 @@
-import lightning as L
 import logging
+from typing import List, Optional, Union
+
+import lightning as L
 import numpy as np
 import torch
 import torch.nn as nn
 import torchmetrics as tm
 import transformers
-from typing import List, Optional, Union
+from lightning.pytorch.callbacks import BaseFinetuning
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ class _EEGViT_pretrained(nn.Module):
         model.classifier=torch.nn.Sequential(torch.nn.Linear(self.model_params['embedding_dim'],self.model_params['hidden_size'],bias=True),
                                              torch.nn.Dropout(p=self.model_params['dropout_rate']),
                                              torch.nn.Linear(self.model_params['hidden_size'],num_classes,bias=True))
+
         self.ViT = model
 
     def forward(self,x):
@@ -60,7 +63,7 @@ class _EEGViT_pretrained(nn.Module):
 
 class EEGViT_pretrained(L.LightningModule):
     def __init__(self, trainable_base: bool=True, output_dim: int = 1, model_params=None, metrics: Union[None, List[tm.Metric], tm.MetricCollection] = None,
-                 criterion: Optional[nn.Module] = None, lr=1e-3):
+                 criterion: Optional[nn.Module] = None, lr=1e-3, optimize_model=False):
         super().__init__()
         self.model = _EEGViT_pretrained(model_params, output_dim)
         if not trainable_base:
@@ -73,8 +76,16 @@ class EEGViT_pretrained(L.LightningModule):
                 logger.warning('Warning: CrossEntropyLoss used for multi-class classification')
         else:
             self.criterion = criterion
-        self.metrics = metrics
+        if not isinstance(metrics, tm.MetricCollection):
+            self.metrics = tm.MetricCollection(metrics)
+        else:
+            self.metrics = metrics
         self.lr = lr
+        self.optimize_model = optimize_model
+
+    def configure_model(self) -> None:
+        if self.optimize_model:
+            self.model = torch.compile(self.model)
 
     def setup(self, stage: str) -> None:
         """Sets up the metrics for training and validation.
@@ -82,11 +93,9 @@ class EEGViT_pretrained(L.LightningModule):
         Args:
             stage (str): The stage of the training process ('fit', 'validate', 'test', or 'predict').
         """
-        if not isinstance(self.metrics, tm.MetricCollection):
-            self.metrics = tm.MetricCollection(self.metrics)
-        self.train_metrics = self.metrics.clone(prefix='train_')
-        self.val_metrics = self.metrics.clone(prefix='val_')
-        self.sw_val_metrics = self.metrics.clone(prefix='subwise_val_')
+        self.train_metrics = self.metrics.clone(prefix='train_').to(self.device)
+        self.val_metrics = self.metrics.clone(prefix='val_').to(self.device)
+        self.sw_val_metrics = self.metrics.clone(prefix='subwise_val_').to(self.device)
         self.metrics.reset()
         self.val_metrics.reset()
         self.train_metrics.reset()
@@ -98,6 +107,7 @@ class EEGViT_pretrained(L.LightningModule):
     def _step(self, batch, batch_idx):
         x, y = batch
         x = self.model(x)
+        y = y.to(self.device)
         loss = self.criterion(x, y)
         return loss, x, y
 
@@ -141,7 +151,7 @@ class EEGViT_pretrained(L.LightningModule):
                 sub_y[idx] = y[mask][0]
             else:
                 raise ValueError('Not all labels are same for a subject')
-        return sub_x.unsqueeze(1), sub_y.unsqueeze(1)
+        return sub_x.unsqueeze(1).to(self.device), sub_y.unsqueeze(1).to(self.device)
 
     def validation_step(self, batch, batch_idx):
         x,y,sub_id = batch
@@ -175,6 +185,23 @@ class EEGViT_pretrained(L.LightningModule):
         self.metrics.update(x, y)
         self.log('test_loss', loss, on_epoch=True, on_step=True, prog_bar=True)
         return loss
+
+    def predict_step(self, batch, batch_idx):
+        x, y, sub_id = batch
+        loss, x, y = self._step((x, y), batch_idx)
+        self.val_metrics.update(x, y)
+        sub_x, sub_y = self.accumulate_subjects(x, y, sub_id)
+        self.sw_val_metrics.update(sub_x, sub_y)
+        return sub_id, loss, x, y
+
+    def on_predict_epoch_end(self) -> None:
+        """Called at the end of the validation epoch to compute and log metrics."""
+        self.val_scores = self.val_metrics.compute()
+        self.val_metrics.reset()
+        self.sw_val_scores = self.sw_val_metrics.compute()
+        self.sw_val_metrics.reset()
+        print(self.val_scores)
+        print(self.sw_val_scores)
 
     def on_test_epoch_end(self) -> None:
         """Called at the end of the test epoch to compute and log metrics."""

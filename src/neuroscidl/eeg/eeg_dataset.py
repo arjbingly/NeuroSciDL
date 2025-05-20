@@ -1,13 +1,15 @@
+from os import PathLike
+from pathlib import Path
+from typing import Union
+
 import numpy as np
 import pandas as pd
 import torch
 from lightning import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
+
 from neuroscidl.eeg.annotator import EEGSampleAnnotator
 from neuroscidl.eeg.utils import read_eeg
-from os import PathLike
-from pathlib import Path
-from torch.utils.data import DataLoader, Dataset
-from typing import Union
 
 
 class EEGSampleDataset(Dataset):
@@ -115,7 +117,7 @@ class EEGDataModule(LightningDataModule):
 
     def prepare_data(self, stage=None):
         self._validate_files()
-        self.annotations_df = pd.read_csv(self.annotation_file)
+        self.annotations_df = pd.read_csv(self.annotation_file) # Not recommended to assign state in prepare_data
         self._validate_annotations()
 
     def _annotate_samples(self):
@@ -131,7 +133,7 @@ class EEGDataModule(LightningDataModule):
         if stage == 'fit' or stage is None:
             self.train_annotations = self.annotations_df[self.annotations_df['split']=='train']
             self.val_annotations = self.annotations_df[self.annotations_df['split']=='val']
-        if stage == 'validate' or stage is None:
+        if stage == 'validate' or stage == 'predict' or stage is None:
             self.val_annotations = self.annotations_df[self.annotations_df['split']=='val']
         if stage == 'test':
             self.test_annotations = self.annotations_df[self.annotations_df['split']=='test']
@@ -141,14 +143,32 @@ class EEGDataModule(LightningDataModule):
             EEGSampleDataset(self.data_dir, self.train_annotations, transform=self.train_transform, label_col=self.label_col),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True)
+            shuffle=True,
+            pin_memory=True,
+            persistent_workers=True)
 
     def val_dataloader(self):
         return DataLoader(
             EEGSampleDataset(self.data_dir, self.val_annotations, transform=self.val_transform, return_info='id', label_col=self.label_col),
             batch_size=self.batch_size,
             num_workers=2,
-            shuffle=False)
+            shuffle=False,
+            pin_memory=True,
+            persistent_workers=True)
+
+    def predict_dataloader(self):
+        return DataLoader(
+            EEGSampleDataset(
+                self.data_dir,
+                self.val_annotations,
+                transform=self.val_transform,
+                return_info="id",
+                label_col=self.label_col,
+            ),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
 
     def test_dataloader(self):
         return DataLoader(
